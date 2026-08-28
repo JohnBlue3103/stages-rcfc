@@ -165,18 +165,6 @@
           <input type="hidden" id="p-id"/>
           <label>Nom de la période</label>
           <input type="text" id="p-nom" placeholder="Vacances de la Toussaint"/>
-          <div class="row-2">
-            <div>
-              <label>Date de début</label>
-              <input type="date" id="p-date-debut"/>
-            </div>
-            <div>
-              <label>Date de fin</label>
-              <input type="date" id="p-date-fin"/>
-            </div>
-          </div>
-          <label>Places max</label>
-          <input type="number" id="p-places" placeholder="24" min="1"/>
           <label>Ordre d'affichage</label>
           <input type="number" id="p-ordre" value="0"/>
           <div class="checkbox-row">
@@ -194,8 +182,39 @@
           </div>
 
           <div class="panel">
-            <h3>Grille tarifaire (dégressive, par nombre de jours)</h3>
+            <h3>Grille tarifaire (dégressive, par nombre de jours, par semaine)</h3>
             <div id="grille-tarifs-list"><div class="empty-state"><p>Chargement...</p></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:20px;">
+        <h3>Semaines d'une période</h3>
+        <div class="session-row">
+          <select id="semaines-periode-select" onchange="loadSemaines()"></select>
+        </div>
+        <div class="admin-grid">
+          <div>
+            <input type="hidden" id="s-id"/>
+            <label>Nom de la semaine</label>
+            <input type="text" id="s-nom" placeholder="Semaine 1"/>
+            <div class="row-2">
+              <div>
+                <label>Date de début</label>
+                <input type="date" id="s-date-debut"/>
+              </div>
+              <div>
+                <label>Date de fin</label>
+                <input type="date" id="s-date-fin"/>
+              </div>
+            </div>
+            <label>Ordre d'affichage</label>
+            <input type="number" id="s-ordre" value="0"/>
+            <button class="btn-gold" onclick="saveSemaine()">+ Enregistrer</button>
+            <button class="btn-sm-grey" style="width:100%;margin-top:8px;" onclick="resetFormSemaine()">Annuler / Nouvelle semaine</button>
+          </div>
+          <div>
+            <div id="semaines-admin-list"><div class="empty-state"><p>Sélectionnez une période</p></div></div>
           </div>
         </div>
       </div>

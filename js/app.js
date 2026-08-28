@@ -1,5 +1,6 @@
 let periodesCache = [];
 let grilleTarifs = {}; // nb_jours -> prix
+let semainesModalCache = {}; // id -> semaine, pour la modale d'inscription ouverte
 
 window.addEventListener('DOMContentLoaded', async () => {
   await chargerGrilleTarifs();
@@ -26,14 +27,13 @@ async function chargerPeriodes() {
     return;
   }
 
-  // Récupère le nombre de places prises pour chaque période
-  const avecPlaces = await Promise.all(periodes.map(async p => {
-    const { data: prises } = await sb.rpc('places_prises', { p_periode_id: p.id });
-    return { ...p, places_prises: prises || 0 };
+  const avecSemaines = await Promise.all(periodes.map(async p => {
+    const { data: semaines } = await sb.from('semaines').select('*').eq('periode_id', p.id).order('ordre');
+    return { ...p, semaines: semaines || [] };
   }));
 
-  periodesCache = avecPlaces;
-  grid.innerHTML = avecPlaces.map(renderCardPeriode).join('');
+  periodesCache = avecSemaines;
+  grid.innerHTML = avecSemaines.map(renderCardPeriode).join('');
 }
 
 function formatDateFr(d) {
@@ -44,9 +44,9 @@ function formatDateCourte(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-// Le virement doit être fait au moins 3 semaines (21 jours) avant le début du stage
-function dateLimitePaiement(dateDebut) {
-  const d = new Date(dateDebut + 'T00:00:00');
+// Le virement doit être fait au moins 3 semaines (21 jours) avant le premier jour choisi
+function dateLimitePaiement(premierJour) {
+  const d = new Date(premierJour + 'T00:00:00');
   d.setDate(d.getDate() - 21);
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
@@ -68,40 +68,42 @@ function joursOuvresPeriode(dateDebut, dateFin) {
 
 function prixPourNbJours(nb) {
   if (grilleTarifs[nb] != null) return grilleTarifs[nb];
-  // Sécurité si nb dépasse la grille (ne devrait pas arriver, max 5 jours)
   const max = Math.max(...Object.keys(grilleTarifs).map(Number));
   return grilleTarifs[max] || 0;
 }
 
 function renderCardPeriode(p) {
-  // Places restantes masquées côté front pour le moment (en réflexion) — la limite
-  // places_max reste appliquée côté données, seul l'affichage est retiré ici.
-  const nbJoursMax = joursOuvresPeriode(p.date_debut, p.date_fin).length;
+  const semaines = p.semaines || [];
+  const debut = semaines.length ? semaines.reduce((min, s) => s.date_debut < min ? s.date_debut : min, semaines[0].date_debut) : null;
+  const fin   = semaines.length ? semaines.reduce((max, s) => s.date_fin > max ? s.date_fin : max, semaines[0].date_fin) : null;
   const prixMin = prixPourNbJours(1);
-  const prixMax = prixPourNbJours(nbJoursMax);
+  const prixMax = prixPourNbJours(5);
 
   return `
   <div class="periode-card">
     <h2>${p.nom}</h2>
-    <div class="periode-dates">Du ${formatDateFr(p.date_debut)} au ${formatDateFr(p.date_fin)}</div>
+    ${debut
+      ? `<div class="periode-dates">Du ${formatDateFr(debut)} au ${formatDateFr(fin)}${semaines.length > 1 ? ' — ' + semaines.length + ' semaines au choix' : ''}</div>`
+      : ''}
     <div class="periode-meta">
-      <div class="periode-tarif">${prixMin} € <span>à</span> ${prixMax} € <span>selon les jours choisis</span></div>
+      <div class="periode-tarif">${prixMin} € <span>à</span> ${prixMax} € <span>par semaine choisie</span></div>
     </div>
-    <button class="btn-gold" onclick="ouvrirInscription('${p.id}')">
-      Je m'inscris
+    <button class="btn-gold" ${semaines.length ? '' : 'disabled'} onclick="ouvrirInscription('${p.id}')">
+      ${semaines.length ? "Je m'inscris" : 'Bientôt disponible'}
     </button>
   </div>`;
 }
 
 function ouvrirInscription(periodeId) {
   const p = periodesCache.find(x => x.id === periodeId);
-  if (!p) return;
+  if (!p || !p.semaines?.length) return;
 
-  const jours = joursOuvresPeriode(p.date_debut, p.date_fin);
+  semainesModalCache = {};
+  p.semaines.forEach(s => { semainesModalCache[s.id] = s; });
 
   document.getElementById('modal-form-content').innerHTML = `
     <h3>Pré-inscription</h3>
-    <div class="sub">${p.nom} — du ${formatDateFr(p.date_debut)} au ${formatDateFr(p.date_fin)}</div>
+    <div class="sub">${p.nom}</div>
 
     <label>Prénom de l'adhérent</label>
     <input type="text" id="f-prenom" placeholder="Prénom"/>
@@ -116,13 +118,17 @@ function ouvrirInscription(periodeId) {
     <label>Téléphone</label>
     <input type="tel" id="f-telephone" placeholder="06 12 34 56 78"/>
 
-    <label>Jours souhaités</label>
-    <div class="jours-checklist" id="jours-checklist">
-      ${jours.map(j => `
-        <label class="jour-check">
-          <input type="checkbox" class="f-jour" value="${j}" onchange="recalculerMontant()" checked/>
-          ${formatDateCourte(j)}
-        </label>`).join('')}
+    <label>Semaine(s) souhaitée(s)</label>
+    <div id="semaines-checklist">
+      ${p.semaines.map(s => `
+        <div class="semaine-block">
+          <label class="semaine-check">
+            <input type="checkbox" class="f-semaine" value="${s.id}" onchange="toggleSemaine('${s.id}')"/>
+            <strong>${s.nom}</strong> — du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)}
+          </label>
+          <div class="jours-checklist" id="jours-semaine-${s.id}" style="display:none;"></div>
+        </div>
+      `).join('')}
     </div>
 
     <label class="tarif-reduit-row">
@@ -144,26 +150,59 @@ function ouvrirInscription(periodeId) {
   recalculerMontant();
 }
 
+function toggleSemaine(semaineId) {
+  const cb = document.querySelector(`.f-semaine[value="${semaineId}"]`);
+  const container = document.getElementById('jours-semaine-' + semaineId);
+
+  if (cb.checked) {
+    const semaine = semainesModalCache[semaineId];
+    const jours = joursOuvresPeriode(semaine.date_debut, semaine.date_fin);
+    container.innerHTML = jours.map(j => `
+      <label class="jour-check">
+        <input type="checkbox" class="f-jour" data-semaine="${semaineId}" value="${j}" onchange="recalculerMontant()" checked/>
+        ${formatDateCourte(j)}
+      </label>`).join('');
+    container.style.display = 'grid';
+  } else {
+    container.innerHTML = '';
+    container.style.display = 'none';
+  }
+  recalculerMontant();
+}
+
 function joursSelectionnes() {
   return Array.from(document.querySelectorAll('.f-jour:checked')).map(el => el.value);
 }
 
+// Calcule le montant total : grille dégressive appliquée semaine par semaine, puis additionnée
+function calculerMontantBase() {
+  let total = 0;
+  document.querySelectorAll('.f-semaine:checked').forEach(cb => {
+    const nb = document.querySelectorAll(`.f-jour[data-semaine="${cb.value}"]:checked`).length;
+    if (nb > 0) total += prixPourNbJours(nb);
+  });
+  return Math.round(total * 100) / 100;
+}
+
 function recalculerMontant() {
-  const nb = joursSelectionnes().length;
+  const semainesChecked = document.querySelectorAll('.f-semaine:checked');
   const reduit = document.getElementById('f-tarif-reduit')?.checked;
   const box = document.getElementById('montant-box');
   if (!box) return;
 
-  if (nb === 0) {
+  if (!semainesChecked.length) {
+    box.innerHTML = `<span style="color:#fc8181;">Sélectionnez au moins une semaine</span>`;
+    return;
+  }
+  if (!joursSelectionnes().length) {
     box.innerHTML = `<span style="color:#fc8181;">Sélectionnez au moins un jour</span>`;
     return;
   }
 
-  const prixBase = prixPourNbJours(nb);
+  const prixBase = calculerMontantBase();
   const montant = reduit ? Math.round(prixBase * 0.8 * 100) / 100 : prixBase;
 
-  box.innerHTML = `${nb} jour${nb > 1 ? 's' : ''} sélectionné${nb > 1 ? 's' : ''} — Montant à régler :
-    <strong>${montant} €</strong>${reduit ? ' <span style="color:#8fa8c8;">(tarif réduit -20% appliqué)</span>' : ''}`;
+  box.innerHTML = `Montant à régler : <strong>${montant} €</strong>${reduit ? ' <span style="color:#8fa8c8;">(tarif réduit -20% appliqué)</span>' : ''}`;
 }
 
 function fermerModal() {
@@ -181,9 +220,10 @@ async function validerInscription(periodeId) {
   const reduit    = document.getElementById('f-tarif-reduit').checked;
 
   if (!prenom || !nom || !email) return showToast('Merci de remplir au moins le nom, prénom et email');
+  if (!document.querySelectorAll('.f-semaine:checked').length) return showToast('Merci de sélectionner au moins une semaine');
   if (!jours.length) return showToast('Merci de sélectionner au moins un jour');
 
-  const prixBase = prixPourNbJours(jours.length);
+  const prixBase = calculerMontantBase();
   const montant = reduit ? Math.round(prixBase * 0.8 * 100) / 100 : prixBase;
 
   const { error } = await sb.from('inscriptions').insert({
@@ -202,7 +242,7 @@ async function validerInscription(periodeId) {
   const p = periodesCache.find(x => x.id === periodeId);
   afficherConfirmation(p, nom, prenom, jours, montant);
   envoyerEmailPreinscription({ email, nom, prenom, jours, montant }, p);
-  chargerPeriodes(); // rafraîchit les places restantes
+  chargerPeriodes();
 }
 
 function referenceVirement(nom, prenom, periodeNom) {
@@ -210,7 +250,8 @@ function referenceVirement(nom, prenom, periodeNom) {
 }
 
 function afficherConfirmation(p, nom, prenom, jours, montant) {
-  const dateLimite = dateLimitePaiement(p.date_debut);
+  const premierJour = jours.slice().sort()[0];
+  const dateLimite = dateLimitePaiement(premierJour);
   const reference = referenceVirement(nom, prenom, p.nom);
   document.getElementById('modal-form-content').innerHTML = `
     <div class="confirmation">
@@ -218,7 +259,7 @@ function afficherConfirmation(p, nom, prenom, jours, montant) {
       <h3>Pré-inscription enregistrée</h3>
       <p><strong style="color:#fc8181;">Attention : ceci est une PRÉ-inscription, elle ne vaut pas inscription définitive.</strong>
       ${prenom} ${nom} est pré-inscrit(e) au stage <strong style="color:#fff;">${p.nom}</strong>
-      (${jours.length} jour${jours.length > 1 ? 's' : ''} : ${jours.map(formatDateCourte).join(', ')}).
+      (${jours.length} jour${jours.length > 1 ? 's' : ''} : ${jours.slice().sort().map(formatDateCourte).join(', ')}).
       L'inscription ne sera confirmée qu'à réception du virement, <strong style="color:#fff;">au plus tard le ${dateLimite}</strong>
       (3 semaines avant le début du stage). Une fois votre virement effectué, vous recevrez un email de confirmation
       dès que le trésorier aura pointé la réception du paiement.</p>
@@ -240,14 +281,15 @@ function afficherConfirmation(p, nom, prenom, jours, montant) {
 }
 
 async function envoyerEmailPreinscription(inscription, periode) {
+  const premierJour = inscription.jours.slice().sort()[0];
   try {
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_PREINSCRIPTION_ID, {
       to_email: inscription.email,
       to_name: inscription.prenom + ' ' + inscription.nom,
       periode_nom: periode.nom,
-      jours: inscription.jours.map(formatDateCourte).join(', '),
+      jours: inscription.jours.slice().sort().map(formatDateCourte).join(', '),
       montant: inscription.montant,
-      date_limite: dateLimitePaiement(periode.date_debut),
+      date_limite: dateLimitePaiement(premierJour),
       iban: VIREMENT_INFO.iban,
       bic: VIREMENT_INFO.bic,
       beneficiaire: VIREMENT_INFO.beneficiaire,

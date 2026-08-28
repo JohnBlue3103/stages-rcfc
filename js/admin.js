@@ -1,5 +1,6 @@
 let periodesCache = [];
 let grilleTarifsCache = [];
+let semainesCache = [];
 
 // ── Mot de passe ──────────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ function renderPeriodesList() {
     <div class="periode-row ${p.actif ? '' : 'inactif'}">
       <div>
         <div class="periode-row-titre">${p.nom}</div>
-        <div class="periode-row-sub">Du ${formatDateFr(p.date_debut)} au ${formatDateFr(p.date_fin)}${p.places_max ? ' — ' + p.places_max + ' places' : ''}${p.actif ? '' : ' — masquée'}</div>
+        <div class="periode-row-sub">${p.actif ? 'Visible sur le site' : 'Masquée'}</div>
       </div>
       <div class="periode-row-actions">
         <button class="btn-sm-grey" onclick="editPeriode('${p.id}')">✎ Modifier</button>
@@ -91,11 +92,18 @@ function renderPeriodesList() {
 }
 
 function renderPeriodesSelect() {
+  const options = '<option value="">— Choisir une période —</option>' +
+    periodesCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+
   const sel = document.getElementById('inscriptions-periode-select');
   const previous = sel.value;
-  sel.innerHTML = '<option value="">— Choisir une période —</option>' +
-    periodesCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+  sel.innerHTML = options;
   if (previous) sel.value = previous;
+
+  const selSemaines = document.getElementById('semaines-periode-select');
+  const previousSemaines = selSemaines.value;
+  selSemaines.innerHTML = options;
+  if (previousSemaines) selSemaines.value = previousSemaines;
 }
 
 function editPeriode(id) {
@@ -104,9 +112,6 @@ function editPeriode(id) {
   document.getElementById('periode-form-title').textContent = 'Modifier la période';
   document.getElementById('p-id').value = p.id;
   document.getElementById('p-nom').value = p.nom;
-  document.getElementById('p-date-debut').value = p.date_debut;
-  document.getElementById('p-date-fin').value = p.date_fin;
-  document.getElementById('p-places').value = p.places_max ?? '';
   document.getElementById('p-ordre').value = p.ordre ?? 0;
   document.getElementById('p-actif').checked = p.actif;
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -116,27 +121,20 @@ function resetFormPeriode() {
   document.getElementById('periode-form-title').textContent = 'Nouvelle période';
   document.getElementById('p-id').value = '';
   document.getElementById('p-nom').value = '';
-  document.getElementById('p-date-debut').value = '';
-  document.getElementById('p-date-fin').value = '';
-  document.getElementById('p-places').value = '';
   document.getElementById('p-ordre').value = 0;
   document.getElementById('p-actif').checked = true;
 }
 
 async function savePeriode() {
-  const id         = document.getElementById('p-id').value || null;
-  const nom        = document.getElementById('p-nom').value.trim();
-  const dateDebut  = document.getElementById('p-date-debut').value;
-  const dateFin    = document.getElementById('p-date-fin').value;
-  const places     = document.getElementById('p-places').value ? Number(document.getElementById('p-places').value) : null;
-  const ordre      = Number(document.getElementById('p-ordre').value) || 0;
-  const actif      = document.getElementById('p-actif').checked;
+  const id    = document.getElementById('p-id').value || null;
+  const nom   = document.getElementById('p-nom').value.trim();
+  const ordre = Number(document.getElementById('p-ordre').value) || 0;
+  const actif = document.getElementById('p-actif').checked;
 
-  if (!nom || !dateDebut || !dateFin) return showToast('Merci de remplir au moins le nom et les dates');
+  if (!nom) return showToast('Merci de remplir le nom de la période');
 
   const { error } = await sb.rpc('admin_upsert_periode', {
-    p_id: id, p_nom: nom, p_date_debut: dateDebut, p_date_fin: dateFin,
-    p_places_max: places, p_ordre: ordre, p_actif: actif
+    p_id: id, p_nom: nom, p_ordre: ordre, p_actif: actif
   });
 
   if (error) return showToast('Erreur : ' + error.message);
@@ -152,6 +150,95 @@ async function deletePeriode(id) {
   if (error) return showToast('Erreur : ' + error.message);
   showToast('Période supprimée');
   await loadPeriodes();
+}
+
+// ── Semaines ──────────────────────────────────────────────────────────────────
+
+async function loadSemaines() {
+  const periodeId = document.getElementById('semaines-periode-select').value;
+  const el = document.getElementById('semaines-admin-list');
+
+  if (!periodeId) {
+    semainesCache = [];
+    el.innerHTML = '<div class="empty-state"><p>Sélectionnez une période</p></div>';
+    return;
+  }
+
+  const { data, error } = await sb.rpc('admin_list_semaines', { p_periode_id: periodeId });
+  if (error) { showToast('Erreur : ' + error.message); return; }
+
+  semainesCache = data || [];
+  renderSemainesList();
+}
+
+function renderSemainesList() {
+  const el = document.getElementById('semaines-admin-list');
+  if (!semainesCache.length) {
+    el.innerHTML = '<div class="empty-state"><p>Aucune semaine créée</p></div>';
+    return;
+  }
+  el.innerHTML = semainesCache.map(s => `
+    <div class="periode-row">
+      <div>
+        <div class="periode-row-titre">${s.nom}</div>
+        <div class="periode-row-sub">Du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)}</div>
+      </div>
+      <div class="periode-row-actions">
+        <button class="btn-sm-grey" onclick="editSemaine('${s.id}')">✎ Modifier</button>
+        <button class="btn-sm-red" onclick="deleteSemaine('${s.id}')">🗑</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editSemaine(id) {
+  const s = semainesCache.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('s-id').value = s.id;
+  document.getElementById('s-nom').value = s.nom;
+  document.getElementById('s-date-debut').value = s.date_debut;
+  document.getElementById('s-date-fin').value = s.date_fin;
+  document.getElementById('s-ordre').value = s.ordre ?? 0;
+  window.scrollTo({ top: document.getElementById('semaines-periode-select').getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
+}
+
+function resetFormSemaine() {
+  document.getElementById('s-id').value = '';
+  document.getElementById('s-nom').value = '';
+  document.getElementById('s-date-debut').value = '';
+  document.getElementById('s-date-fin').value = '';
+  document.getElementById('s-ordre').value = 0;
+}
+
+async function saveSemaine() {
+  const periodeId = document.getElementById('semaines-periode-select').value;
+  if (!periodeId) return showToast('Merci de choisir une période');
+
+  const id        = document.getElementById('s-id').value || null;
+  const nom       = document.getElementById('s-nom').value.trim();
+  const dateDebut = document.getElementById('s-date-debut').value;
+  const dateFin   = document.getElementById('s-date-fin').value;
+  const ordre     = Number(document.getElementById('s-ordre').value) || 0;
+
+  if (!nom || !dateDebut || !dateFin) return showToast('Merci de remplir le nom et les dates');
+
+  const { error } = await sb.rpc('admin_upsert_semaine', {
+    p_id: id, p_periode_id: periodeId, p_nom: nom, p_date_debut: dateDebut, p_date_fin: dateFin, p_ordre: ordre
+  });
+
+  if (error) return showToast('Erreur : ' + error.message);
+
+  showToast('Semaine enregistrée ✅');
+  resetFormSemaine();
+  await loadSemaines();
+}
+
+async function deleteSemaine(id) {
+  if (!confirm('Supprimer cette semaine ?')) return;
+  const { error } = await sb.rpc('admin_delete_semaine', { p_id: id });
+  if (error) return showToast('Erreur : ' + error.message);
+  showToast('Semaine supprimée');
+  await loadSemaines();
 }
 
 // ── Grille tarifaire ──────────────────────────────────────────────────────────
@@ -264,17 +351,16 @@ async function supprimerInscription(inscriptionId) {
 }
 
 async function envoyerEmailConfirmation(inscription, periode) {
-  const nbJours = inscription.jours_selectionnes?.length || 0;
-  const joursLabel = nbJours
-    ? inscription.jours_selectionnes.map(j => new Date(j + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })).join(', ')
-    : '';
+  const jours = (inscription.jours_selectionnes || []).slice().sort();
+  const joursLabel = jours.map(j => new Date(j + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })).join(', ');
+  const periodeDates = jours.length ? ('du ' + formatDateFr(jours[0]) + ' au ' + formatDateFr(jours[jours.length - 1])) : '';
 
   try {
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_PAIEMENT_ID, {
       to_email: inscription.email,
       to_name: inscription.prenom + ' ' + inscription.nom,
       periode_nom: periode?.nom || '',
-      periode_dates: periode ? ('du ' + formatDateFr(periode.date_debut) + ' au ' + formatDateFr(periode.date_fin)) : '',
+      periode_dates: periodeDates,
       jours: joursLabel,
       montant: inscription.montant,
     });

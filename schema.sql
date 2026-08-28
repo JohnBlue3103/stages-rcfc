@@ -1,16 +1,14 @@
 -- Coller dans l'éditeur SQL de Supabase (projet stages-rcfc)
 -- (schéma complet — pour une remise à zéro / nouvelle installation.
---  Si la base existe déjà, utiliser plutôt le script de migration fourni séparément.)
+--  Si la base existe déjà, utiliser plutôt les scripts migration_00X_*.sql fournis séparément.)
 
 create extension if not exists pgcrypto;
 
 -- ═══════════════════ PÉRIODES DE VACANCES ═══════════════════
+-- Une période (ex: 'Vacances de la Toussaint') regroupe une ou plusieurs semaines.
 create table periodes (
   id           uuid primary key default gen_random_uuid(),
-  nom          text not null,          -- ex: 'Vacances de la Toussaint'
-  date_debut   date not null,
-  date_fin     date not null,
-  places_max   int,                    -- null = illimité
+  nom          text not null,
   ordre        int default 0,          -- ordre d'affichage
   actif        boolean default true,   -- masque la période si false
   created_at   timestamptz default now()
@@ -19,7 +17,23 @@ create table periodes (
 alter table periodes enable row level security;
 create policy "public read periodes actives" on periodes for select using (actif = true);
 
--- ═══════════════════ GRILLE TARIFAIRE (dégressive, par nombre de jours) ═══════════════════
+-- ═══════════════════ SEMAINES ═══════════════════
+-- Chaque période contient une ou plusieurs semaines, que le parent choisit à l'inscription.
+create table semaines (
+  id          uuid primary key default gen_random_uuid(),
+  periode_id  uuid not null references periodes(id) on delete cascade,
+  nom         text not null,          -- ex: 'Semaine 1'
+  date_debut  date not null,
+  date_fin    date not null,
+  ordre       int default 0,
+  created_at  timestamptz default now()
+);
+
+alter table semaines enable row level security;
+create policy "public read semaines" on semaines
+  for select using (exists (select 1 from periodes p where p.id = semaines.periode_id and p.actif = true));
+
+-- ═══════════════════ GRILLE TARIFAIRE (dégressive, par nombre de jours, par semaine) ═══════════════════
 create table grille_tarifs (
   nb_jours int primary key check (nb_jours between 1 and 5),
   prix     numeric(6,2) not null
@@ -41,7 +55,7 @@ create table inscriptions (
   nom_parent         text,              -- si l'adhérent est mineur
   email              text not null,
   telephone          text,
-  jours_selectionnes date[] not null default '{}',  -- jours du stage choisis
+  jours_selectionnes date[] not null default '{}',  -- jours choisis, toutes semaines confondues
   tarif_reduit       boolean not null default false, -- -20% fratrie (2e enfant et suivants)
   montant            numeric(6,2),      -- montant dû, calculé et figé au moment de l'inscription
   paye               boolean not null default false,
@@ -90,15 +104,12 @@ language sql
 security definer
 set search_path = public
 as $$
-  select * from periodes order by ordre, date_debut;
+  select * from periodes order by ordre, nom;
 $$;
 revoke all on function admin_list_periodes() from public;
 grant execute on function admin_list_periodes() to anon, authenticated;
 
-create or replace function admin_upsert_periode(
-  p_id uuid, p_nom text, p_date_debut date, p_date_fin date,
-  p_places_max int, p_ordre int, p_actif boolean
-)
+create or replace function admin_upsert_periode(p_id uuid, p_nom text, p_ordre int, p_actif boolean)
 returns periodes
 language plpgsql
 security definer
@@ -108,21 +119,15 @@ declare
   r periodes;
 begin
   if p_id is null then
-    insert into periodes (nom, date_debut, date_fin, places_max, ordre, actif)
-    values (p_nom, p_date_debut, p_date_fin, p_places_max, p_ordre, p_actif)
-    returning * into r;
+    insert into periodes (nom, ordre, actif) values (p_nom, p_ordre, p_actif) returning * into r;
   else
-    update periodes set
-      nom = p_nom, date_debut = p_date_debut, date_fin = p_date_fin,
-      places_max = p_places_max, ordre = p_ordre, actif = p_actif
-    where id = p_id
-    returning * into r;
+    update periodes set nom = p_nom, ordre = p_ordre, actif = p_actif where id = p_id returning * into r;
   end if;
   return r;
 end;
 $$;
-revoke all on function admin_upsert_periode(uuid,text,date,date,int,int,boolean) from public;
-grant execute on function admin_upsert_periode(uuid,text,date,date,int,int,boolean) to anon, authenticated;
+revoke all on function admin_upsert_periode(uuid,text,int,boolean) from public;
+grant execute on function admin_upsert_periode(uuid,text,int,boolean) to anon, authenticated;
 
 create or replace function admin_delete_periode(p_id uuid)
 returns void
@@ -134,6 +139,55 @@ as $$
 $$;
 revoke all on function admin_delete_periode(uuid) from public;
 grant execute on function admin_delete_periode(uuid) to anon, authenticated;
+
+-- ═══════════════════ ADMIN : SEMAINES ═══════════════════
+create or replace function admin_list_semaines(p_periode_id uuid)
+returns setof semaines
+language sql
+security definer
+set search_path = public
+as $$
+  select * from semaines where periode_id = p_periode_id order by ordre, date_debut;
+$$;
+revoke all on function admin_list_semaines(uuid) from public;
+grant execute on function admin_list_semaines(uuid) to anon, authenticated;
+
+create or replace function admin_upsert_semaine(
+  p_id uuid, p_periode_id uuid, p_nom text, p_date_debut date, p_date_fin date, p_ordre int
+)
+returns semaines
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r semaines;
+begin
+  if p_id is null then
+    insert into semaines (periode_id, nom, date_debut, date_fin, ordre)
+    values (p_periode_id, p_nom, p_date_debut, p_date_fin, p_ordre)
+    returning * into r;
+  else
+    update semaines set nom = p_nom, date_debut = p_date_debut, date_fin = p_date_fin, ordre = p_ordre
+    where id = p_id
+    returning * into r;
+  end if;
+  return r;
+end;
+$$;
+revoke all on function admin_upsert_semaine(uuid,uuid,text,date,date,int) from public;
+grant execute on function admin_upsert_semaine(uuid,uuid,text,date,date,int) to anon, authenticated;
+
+create or replace function admin_delete_semaine(p_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from semaines where id = p_id;
+$$;
+revoke all on function admin_delete_semaine(uuid) from public;
+grant execute on function admin_delete_semaine(uuid) to anon, authenticated;
 
 -- ═══════════════════ ADMIN : GRILLE TARIFAIRE ═══════════════════
 create or replace function admin_set_tarif(p_nb_jours int, p_prix numeric)
@@ -197,21 +251,39 @@ $$;
 revoke all on function admin_delete_inscription(uuid) from public;
 grant execute on function admin_delete_inscription(uuid) to anon, authenticated;
 
--- ═══════════════════ PUBLIC : places restantes (pas de données perso exposées) ═══════════════════
-create or replace function places_prises(p_periode_id uuid)
-returns bigint
-language sql
-security definer
-set search_path = public
-as $$
-  select count(*) from inscriptions where periode_id = p_periode_id;
-$$;
-revoke all on function places_prises(uuid) from public;
-grant execute on function places_prises(uuid) to anon, authenticated;
-
 -- ═══════════════════ DONNÉES DE DÉPART (à ajuster dans l'admin) ═══════════════════
-insert into periodes (nom, date_debut, date_fin, places_max, ordre) values
-  ('Vacances de la Toussaint', '2026-10-19', '2026-10-23', 24, 1),
-  ('Vacances de Noël',         '2026-12-21', '2026-12-24', 24, 2),
-  ('Vacances d''Hiver',        '2027-02-15', '2027-02-19', 24, 3),
-  ('Vacances de Printemps',    '2027-04-19', '2027-04-23', 24, 4);
+with p1 as (insert into periodes (nom, ordre) values ('Vacances de la Toussaint', 1) returning id),
+     p2 as (insert into periodes (nom, ordre) values ('Vacances de Noël', 2) returning id),
+     p3 as (insert into periodes (nom, ordre) values ('Vacances d''Hiver', 3) returning id),
+     p4 as (insert into periodes (nom, ordre) values ('Vacances de Printemps', 4) returning id),
+     p5 as (insert into periodes (nom, ordre) values ('Vacances d''été', 5) returning id)
+insert into semaines (periode_id, nom, date_debut, date_fin, ordre)
+select id, nom, date_debut, date_fin, ordre from (
+  select p1.id, s.* from p1, (values
+    ('Semaine 1', '2026-10-19'::date, '2026-10-23'::date, 1),
+    ('Semaine 2', '2026-10-26'::date, '2026-10-30'::date, 2)
+  ) as s(nom, date_debut, date_fin, ordre)
+  union all
+  select p2.id, s.* from p2, (values
+    ('Semaine 1', '2026-12-21'::date, '2026-12-24'::date, 1)
+  ) as s(nom, date_debut, date_fin, ordre)
+  union all
+  select p3.id, s.* from p3, (values
+    ('Semaine 1', '2027-02-15'::date, '2027-02-19'::date, 1)
+  ) as s(nom, date_debut, date_fin, ordre)
+  union all
+  select p4.id, s.* from p4, (values
+    ('Semaine 1', '2027-04-19'::date, '2027-04-23'::date, 1)
+  ) as s(nom, date_debut, date_fin, ordre)
+  union all
+  select p5.id, s.* from p5, (values
+    ('Semaine 1', '2027-07-05'::date, '2027-07-09'::date, 1),
+    ('Semaine 2', '2027-07-12'::date, '2027-07-16'::date, 2),
+    ('Semaine 3', '2027-07-19'::date, '2027-07-23'::date, 3),
+    ('Semaine 4', '2027-07-26'::date, '2027-07-30'::date, 4),
+    ('Semaine 5', '2027-08-02'::date, '2027-08-06'::date, 5),
+    ('Semaine 6', '2027-08-09'::date, '2027-08-13'::date, 6),
+    ('Semaine 7', '2027-08-16'::date, '2027-08-20'::date, 7),
+    ('Semaine 8', '2027-08-23'::date, '2027-08-27'::date, 8)
+  ) as s(nom, date_debut, date_fin, ordre)
+) as t (periode_id, nom, date_debut, date_fin, ordre);
