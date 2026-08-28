@@ -80,6 +80,7 @@ function renderCardPeriode(p) {
   return `
   <div class="periode-card">
     <h2>${p.nom}</h2>
+    ${p.lieu ? `<div class="periode-lieu">📍 ${p.lieu}</div>` : ''}
     ${debut
       ? `<div class="periode-dates">Du ${formatDateFr(debut)} au ${formatDateFr(fin)}${semaines.length > 1 ? ' — ' + semaines.length + ' semaines au choix' : ''}</div>`
       : ''}

@@ -81,7 +81,7 @@ function renderPeriodesList() {
     <div class="periode-row ${p.actif ? '' : 'inactif'}">
       <div>
         <div class="periode-row-titre">${p.nom}</div>
-        <div class="periode-row-sub">${p.actif ? 'Visible sur le site' : 'Masquée'}</div>
+        <div class="periode-row-sub">${p.lieu ? p.lieu + ' — ' : ''}${p.actif ? 'Visible sur le site' : 'Masquée'}</div>
       </div>
       <div class="periode-row-actions">
         <button class="btn-sm-grey" onclick="editPeriode('${p.id}')">✎ Modifier</button>
@@ -112,6 +112,7 @@ function editPeriode(id) {
   document.getElementById('periode-form-title').textContent = 'Modifier la période';
   document.getElementById('p-id').value = p.id;
   document.getElementById('p-nom').value = p.nom;
+  document.getElementById('p-lieu').value = p.lieu ?? '';
   document.getElementById('p-ordre').value = p.ordre ?? 0;
   document.getElementById('p-actif').checked = p.actif;
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -121,6 +122,7 @@ function resetFormPeriode() {
   document.getElementById('periode-form-title').textContent = 'Nouvelle période';
   document.getElementById('p-id').value = '';
   document.getElementById('p-nom').value = '';
+  document.getElementById('p-lieu').value = '';
   document.getElementById('p-ordre').value = 0;
   document.getElementById('p-actif').checked = true;
 }
@@ -128,13 +130,14 @@ function resetFormPeriode() {
 async function savePeriode() {
   const id    = document.getElementById('p-id').value || null;
   const nom   = document.getElementById('p-nom').value.trim();
+  const lieu  = document.getElementById('p-lieu').value.trim() || null;
   const ordre = Number(document.getElementById('p-ordre').value) || 0;
   const actif = document.getElementById('p-actif').checked;
 
   if (!nom) return showToast('Merci de remplir le nom de la période');
 
   const { error } = await sb.rpc('admin_upsert_periode', {
-    p_id: id, p_nom: nom, p_ordre: ordre, p_actif: actif
+    p_id: id, p_nom: nom, p_lieu: lieu, p_ordre: ordre, p_actif: actif
   });
 
   if (error) return showToast('Erreur : ' + error.message);

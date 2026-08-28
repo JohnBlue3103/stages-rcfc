@@ -9,6 +9,7 @@ create extension if not exists pgcrypto;
 create table periodes (
   id           uuid primary key default gen_random_uuid(),
   nom          text not null,
+  lieu         text,                   -- ex: 'Ramonville', 'Auzeville'
   ordre        int default 0,          -- ordre d'affichage
   actif        boolean default true,   -- masque la période si false
   created_at   timestamptz default now()
@@ -109,7 +110,7 @@ $$;
 revoke all on function admin_list_periodes() from public;
 grant execute on function admin_list_periodes() to anon, authenticated;
 
-create or replace function admin_upsert_periode(p_id uuid, p_nom text, p_ordre int, p_actif boolean)
+create or replace function admin_upsert_periode(p_id uuid, p_nom text, p_lieu text, p_ordre int, p_actif boolean)
 returns periodes
 language plpgsql
 security definer
@@ -119,15 +120,15 @@ declare
   r periodes;
 begin
   if p_id is null then
-    insert into periodes (nom, ordre, actif) values (p_nom, p_ordre, p_actif) returning * into r;
+    insert into periodes (nom, lieu, ordre, actif) values (p_nom, p_lieu, p_ordre, p_actif) returning * into r;
   else
-    update periodes set nom = p_nom, ordre = p_ordre, actif = p_actif where id = p_id returning * into r;
+    update periodes set nom = p_nom, lieu = p_lieu, ordre = p_ordre, actif = p_actif where id = p_id returning * into r;
   end if;
   return r;
 end;
 $$;
-revoke all on function admin_upsert_periode(uuid,text,int,boolean) from public;
-grant execute on function admin_upsert_periode(uuid,text,int,boolean) to anon, authenticated;
+revoke all on function admin_upsert_periode(uuid,text,text,int,boolean) from public;
+grant execute on function admin_upsert_periode(uuid,text,text,int,boolean) to anon, authenticated;
 
 create or replace function admin_delete_periode(p_id uuid)
 returns void
@@ -252,11 +253,11 @@ revoke all on function admin_delete_inscription(uuid) from public;
 grant execute on function admin_delete_inscription(uuid) to anon, authenticated;
 
 -- ═══════════════════ DONNÉES DE DÉPART (à ajuster dans l'admin) ═══════════════════
-with p1 as (insert into periodes (nom, ordre) values ('Vacances de la Toussaint', 1) returning id),
-     p2 as (insert into periodes (nom, ordre) values ('Vacances de Noël', 2) returning id),
-     p3 as (insert into periodes (nom, ordre) values ('Vacances d''Hiver', 3) returning id),
-     p4 as (insert into periodes (nom, ordre) values ('Vacances de Printemps', 4) returning id),
-     p5 as (insert into periodes (nom, ordre) values ('Vacances d''été', 5) returning id)
+with p1 as (insert into periodes (nom, lieu, ordre) values ('Vacances de la Toussaint', 'Ramonville', 1) returning id),
+     p2 as (insert into periodes (nom, lieu, ordre) values ('Vacances de Noël', 'Auzeville', 2) returning id),
+     p3 as (insert into periodes (nom, lieu, ordre) values ('Vacances d''Hiver', 'Auzeville', 3) returning id),
+     p4 as (insert into periodes (nom, lieu, ordre) values ('Vacances de Printemps', 'Ramonville', 4) returning id),
+     p5 as (insert into periodes (nom, lieu, ordre) values ('Vacances d''été', 'Ramonville', 5) returning id)
 insert into semaines (periode_id, nom, date_debut, date_fin, ordre)
 select id, nom, date_debut, date_fin, ordre from (
   select p1.id, s.* from p1, (values
