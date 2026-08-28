@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stages Vacances — RCFC</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    body {
+      background: radial-gradient(ellipse at top, #1a3260 0%, #0d1f3c 60%);
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+
+    .hero { text-align: center; margin: 40px auto 30px; padding: 0 16px; }
+    .hero img {
+      width: 110px; height: 110px; border-radius: 50%;
+      border: 3px solid #C8A84B; box-shadow: 0 0 32px #C8A84B44; margin-bottom: 16px;
+    }
+    .hero h1 {
+      color: #C8A84B; font-size: 1.4rem; font-weight: 900;
+      letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px;
+    }
+    .hero p { color: #8fa8c8; font-size: 0.9rem; letter-spacing: 0.5px; }
+    .divider { width: 60px; height: 2px; background: linear-gradient(to right, transparent, #C8A84B, transparent); margin: 16px auto; }
+
+    .infos-pratiques {
+      max-width: 640px; margin: 0 auto 36px; background: #162847;
+      border: 1.5px solid #1e3a5f; border-radius: 16px; padding: 18px 24px;
+      display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;
+    }
+    .infos-pratiques div { display: flex; align-items: center; gap: 8px; color: #8fa8c8; font-size: 0.85rem; }
+    .infos-pratiques strong { color: #fff; }
+    .infos-pratiques svg { color: #C8A84B; flex-shrink: 0; }
+
+    .periodes-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      max-width: 780px; margin: 0 auto; padding: 0 20px;
+    }
+    @media(max-width: 640px) { .periodes-grid { grid-template-columns: 1fr; } }
+
+    .periode-card {
+      background: #162847; border: 1.5px solid #1e3a5f; border-radius: 20px;
+      padding: 28px 24px; color: #fff; transition: all 0.25s; position: relative;
+    }
+    .periode-card:hover { border-color: #C8A84B; transform: translateY(-3px); box-shadow: 0 12px 32px #C8A84B22; }
+
+    .periode-card h2 { font-size: 1.05rem; font-weight: 800; color: #C8A84B; margin-bottom: 8px; }
+    .periode-dates { font-size: 0.88rem; color: #8fa8c8; margin-bottom: 14px; }
+    .periode-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .periode-tarif { font-size: 1.3rem; font-weight: 900; color: #fff; }
+    .periode-tarif span { font-size: 0.75rem; color: #8fa8c8; font-weight: 400; }
+    .periode-places { font-size: 0.78rem; color: #8fa8c8; }
+    .periode-places.complet { color: #fc8181; font-weight: 700; }
+
+    .btn-gold {
+      background: #C8A84B; color: #0d1f3c; border: none; border-radius: 10px;
+      padding: 12px; font-size: 0.95rem; font-weight: 800; cursor: pointer;
+      width: 100%; transition: opacity 0.2s;
+    }
+    .btn-gold:hover { opacity: 0.85; }
+    .btn-gold:disabled { background: #4a5568; color: #a0aec0; cursor: not-allowed; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: #000a; z-index: 999;
+      overflow-y: auto; padding: 24px 16px;
+    }
+    .modal-overlay.show { display: block; }
+    .modal-box {
+      background: #162847; border: 1.5px solid #C8A84B44; border-radius: 18px;
+      max-width: 480px; margin: 20px auto; padding: 28px;
+    }
+    .modal-box h3 { color: #C8A84B; font-size: 1.05rem; margin-bottom: 4px; }
+    .modal-box .sub { color: #8fa8c8; font-size: 0.85rem; margin-bottom: 20px; }
+    .modal-box label { display: block; font-size: 0.82rem; font-weight: 600; color: #8fa8c8; margin: 10px 0 4px; }
+    .modal-box input {
+      background: #0d1f3c; border: 1.5px solid #1e3a5f; color: #fff; margin-bottom: 4px;
+    }
+    .modal-box input:focus { border-color: #C8A84B; }
+    .modal-close {
+      float: right; background: transparent; border: 1.5px solid #8fa8c8; color: #8fa8c8;
+      border-radius: 8px; padding: 5px 12px; cursor: pointer; font-size: 0.85rem;
+    }
+
+    .confirmation { text-align: center; }
+    .confirmation .check { font-size: 2.6rem; margin-bottom: 10px; }
+    .confirmation h3 { color: #C8A84B; margin-bottom: 10px; }
+    .confirmation p { color: #8fa8c8; font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px; }
+    .virement-box {
+      background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 12px;
+      padding: 16px 20px; text-align: left; font-size: 0.88rem; color: #fff; margin-bottom: 16px;
+    }
+    .virement-box div { display: flex; justify-content: space-between; padding: 4px 0; }
+    .virement-box strong { color: #C8A84B; }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <img src="assets/logo.jpg" alt="Logo RCFC"/>
+    <h1>Stages Vacances</h1>
+    <p>Ramonville Coteaux Football Club</p>
+    <div class="divider"></div>
+  </div>
+
+  <div class="infos-pratiques">
+    <div><i data-lucide="map-pin" width="18" height="18"></i> <strong>Stade Honneur</strong>, Ramonville</div>
+    <div><i data-lucide="calendar-days" width="18" height="18"></i> Du <strong>lundi au vendredi</strong></div>
+    <div><i data-lucide="clock" width="18" height="18"></i> <strong>9h – 17h</strong></div>
+  </div>
+
+  <div class="periodes-grid" id="periodes-grid">
+    <div class="empty-state" style="color:#8fa8c8;grid-column:1/-1;">Chargement des périodes...</div>
+  </div>
+
+  <!-- Modal inscription -->
+  <div class="modal-overlay" id="modal-inscription">
+    <div class="modal-box">
+      <button class="modal-close" onclick="fermerModal()">✕ Fermer</button>
+      <div id="modal-form-content"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
