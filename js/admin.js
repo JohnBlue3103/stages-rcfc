@@ -1,4 +1,5 @@
 let periodesCache = [];
+let grilleTarifsCache = [];
 
 // ── Mot de passe ──────────────────────────────────────────────────────────────
 
@@ -23,6 +24,7 @@ async function checkMdpAdmin() {
     document.getElementById('mdp-section').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'block';
     await loadPeriodes();
+    await loadGrilleTarifs();
   } else {
     err.style.display = 'block';
     input.value = '';
@@ -38,6 +40,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('mdp-section').style.display = 'none';
     document.getElementById('admin-panel').style.display = 'block';
     await loadPeriodes();
+    await loadGrilleTarifs();
   } else {
     document.getElementById('mdp-input').focus();
   }
@@ -77,7 +80,7 @@ function renderPeriodesList() {
     <div class="periode-row ${p.actif ? '' : 'inactif'}">
       <div>
         <div class="periode-row-titre">${p.nom}</div>
-        <div class="periode-row-sub">Du ${formatDateFr(p.date_debut)} au ${formatDateFr(p.date_fin)} — ${p.tarif != null ? p.tarif + ' €' : '—'}${p.places_max ? ' — ' + p.places_max + ' places' : ''}${p.actif ? '' : ' — masquée'}</div>
+        <div class="periode-row-sub">Du ${formatDateFr(p.date_debut)} au ${formatDateFr(p.date_fin)}${p.places_max ? ' — ' + p.places_max + ' places' : ''}${p.actif ? '' : ' — masquée'}</div>
       </div>
       <div class="periode-row-actions">
         <button class="btn-sm-grey" onclick="editPeriode('${p.id}')">✎ Modifier</button>
@@ -103,7 +106,6 @@ function editPeriode(id) {
   document.getElementById('p-nom').value = p.nom;
   document.getElementById('p-date-debut').value = p.date_debut;
   document.getElementById('p-date-fin').value = p.date_fin;
-  document.getElementById('p-tarif').value = p.tarif ?? '';
   document.getElementById('p-places').value = p.places_max ?? '';
   document.getElementById('p-ordre').value = p.ordre ?? 0;
   document.getElementById('p-actif').checked = p.actif;
@@ -116,7 +118,6 @@ function resetFormPeriode() {
   document.getElementById('p-nom').value = '';
   document.getElementById('p-date-debut').value = '';
   document.getElementById('p-date-fin').value = '';
-  document.getElementById('p-tarif').value = '';
   document.getElementById('p-places').value = '';
   document.getElementById('p-ordre').value = 0;
   document.getElementById('p-actif').checked = true;
@@ -127,7 +128,6 @@ async function savePeriode() {
   const nom        = document.getElementById('p-nom').value.trim();
   const dateDebut  = document.getElementById('p-date-debut').value;
   const dateFin    = document.getElementById('p-date-fin').value;
-  const tarif      = document.getElementById('p-tarif').value ? Number(document.getElementById('p-tarif').value) : null;
   const places     = document.getElementById('p-places').value ? Number(document.getElementById('p-places').value) : null;
   const ordre      = Number(document.getElementById('p-ordre').value) || 0;
   const actif      = document.getElementById('p-actif').checked;
@@ -136,7 +136,7 @@ async function savePeriode() {
 
   const { error } = await sb.rpc('admin_upsert_periode', {
     p_id: id, p_nom: nom, p_date_debut: dateDebut, p_date_fin: dateFin,
-    p_tarif: tarif, p_places_max: places, p_ordre: ordre, p_actif: actif
+    p_places_max: places, p_ordre: ordre, p_actif: actif
   });
 
   if (error) return showToast('Erreur : ' + error.message);
@@ -152,6 +152,38 @@ async function deletePeriode(id) {
   if (error) return showToast('Erreur : ' + error.message);
   showToast('Période supprimée');
   await loadPeriodes();
+}
+
+// ── Grille tarifaire ──────────────────────────────────────────────────────────
+
+async function loadGrilleTarifs() {
+  const { data, error } = await sb.from('grille_tarifs').select('*').order('nb_jours');
+  if (error) { showToast('Erreur : ' + error.message); return; }
+  grilleTarifsCache = data || [];
+  renderGrilleTarifs();
+}
+
+function renderGrilleTarifs() {
+  const el = document.getElementById('grille-tarifs-list');
+  if (!el) return;
+  el.innerHTML = grilleTarifsCache.map(t => `
+    <div class="tarif-row">
+      <label>${t.nb_jours} jour${t.nb_jours > 1 ? 's' : ''}</label>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="number" id="tarif-${t.nb_jours}" value="${t.prix}" min="0" step="0.01"/>
+        <span class="tarif-euro">€</span>
+        <button class="btn-sm-grey" onclick="saveTarif(${t.nb_jours})">✓</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function saveTarif(nbJours) {
+  const val = Number(document.getElementById('tarif-' + nbJours).value);
+  const { error } = await sb.rpc('admin_set_tarif', { p_nb_jours: nbJours, p_prix: val });
+  if (error) return showToast('Erreur : ' + error.message);
+  showToast('Tarif ' + nbJours + ' jour(s) mis à jour ✅');
+  await loadGrilleTarifs();
 }
 
 // ── Inscriptions ──────────────────────────────────────────────────────────────
@@ -175,11 +207,17 @@ async function loadInscriptions() {
 
   const periode = periodesCache.find(p => p.id === periodeId);
 
-  listEl.innerHTML = data.map(i => `
+  listEl.innerHTML = data.map(i => {
+    const nbJours = i.jours_selectionnes?.length || 0;
+    const joursLabel = nbJours
+      ? nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' (' + i.jours_selectionnes.map(j => new Date(j + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })).join(', ') + ')'
+      : '—';
+    return `
     <div class="inscrit-row ${i.paye ? 'paye' : ''}" id="inscrit-${i.id}">
       <div>
         <div class="inscrit-nom">${i.prenom} ${i.nom}</div>
         <div class="inscrit-meta">${i.email}${i.telephone ? ' · ' + i.telephone : ''}${i.nom_parent ? ' · Parent : ' + i.nom_parent : ''}</div>
+        <div class="inscrit-meta">${joursLabel}${i.tarif_reduit ? ' · tarif réduit -20%' : ''} · <strong style="color:#fff;">${i.montant != null ? i.montant + ' €' : '—'}</strong></div>
         <div class="inscrit-meta">Pré-inscrit le ${new Date(i.date_inscription).toLocaleDateString('fr-FR')}</div>
       </div>
       <div class="inscrit-actions">
@@ -189,7 +227,8 @@ async function loadInscriptions() {
              <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.nom.replace(/'/g, "\\'")}')">Cet adhérent a payé</button>`}
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function marquerPaye(inscriptionId, periodeNom) {
