@@ -189,11 +189,13 @@ async function saveTarif(nbJours) {
 // ── Inscriptions ──────────────────────────────────────────────────────────────
 
 async function loadInscriptions() {
-  const periodeId = document.getElementById('inscriptions-periode-select').value;
-  const listEl = document.getElementById('inscriptions-list');
+  const periodeId  = document.getElementById('inscriptions-periode-select').value;
+  const attenteEl = document.getElementById('inscriptions-attente');
+  const payesEl   = document.getElementById('inscriptions-payes');
 
   if (!periodeId) {
-    listEl.innerHTML = '<div class="empty-state"><p>Sélectionnez une période</p></div>';
+    attenteEl.innerHTML = '<div class="empty-state"><p>Sélectionnez une période</p></div>';
+    payesEl.innerHTML   = '<div class="empty-state"><p>—</p></div>';
     return;
   }
 
@@ -201,18 +203,30 @@ async function loadInscriptions() {
   if (error) { showToast('Erreur : ' + error.message); return; }
 
   if (!data?.length) {
-    listEl.innerHTML = '<div class="empty-state"><p>Aucun inscrit pour cette période</p></div>';
+    attenteEl.innerHTML = '<div class="empty-state"><p>Aucun pré-inscrit</p></div>';
+    payesEl.innerHTML   = '<div class="empty-state"><p>Aucun inscrit</p></div>';
     return;
   }
 
   const periode = periodesCache.find(p => p.id === periodeId);
+  const enAttente = data.filter(i => !i.paye);
+  const payes     = data.filter(i => i.paye);
 
-  listEl.innerHTML = data.map(i => {
-    const nbJours = i.jours_selectionnes?.length || 0;
-    const joursLabel = nbJours
-      ? nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' (' + i.jours_selectionnes.map(j => new Date(j + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })).join(', ') + ')'
-      : '—';
-    return `
+  attenteEl.innerHTML = enAttente.length
+    ? enAttente.map(i => renderInscritRow(i, periode)).join('')
+    : '<div class="empty-state"><p>Aucun pré-inscrit</p></div>';
+
+  payesEl.innerHTML = payes.length
+    ? payes.map(i => renderInscritRow(i, periode)).join('')
+    : '<div class="empty-state"><p>Aucun inscrit</p></div>';
+}
+
+function renderInscritRow(i, periode) {
+  const nbJours = i.jours_selectionnes?.length || 0;
+  const joursLabel = nbJours
+    ? nbJours + ' jour' + (nbJours > 1 ? 's' : '') + ' (' + i.jours_selectionnes.map(j => new Date(j + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })).join(', ') + ')'
+    : '—';
+  return `
     <div class="inscrit-row ${i.paye ? 'paye' : ''}" id="inscrit-${i.id}">
       <div>
         <div class="inscrit-nom">${i.prenom} ${i.nom}</div>
@@ -225,21 +239,26 @@ async function loadInscriptions() {
           ? `<span class="badge-paye">✔ Payé</span>`
           : `<span class="badge-attente">En attente</span>
              <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.nom.replace(/'/g, "\\'")}')">Cet adhérent a payé</button>`}
+        <button class="btn-sm-red" onclick="supprimerInscription('${i.id}')">🗑 Supprimer</button>
       </div>
     </div>
   `;
-  }).join('');
 }
 
 async function marquerPaye(inscriptionId, periodeNom) {
   const { data, error } = await sb.rpc('admin_marquer_paye', { p_id: inscriptionId, p_paye: true });
   if (error) { showToast('Erreur : ' + error.message); return; }
 
-  const row = document.getElementById('inscrit-' + inscriptionId);
-  if (row) row.classList.add('paye');
-
   showToast('Adhérent marqué comme payé ✅');
   await envoyerEmailConfirmation(data, periodeNom);
+  await loadInscriptions();
+}
+
+async function supprimerInscription(inscriptionId) {
+  if (!confirm('Supprimer définitivement cet adhérent ?')) return;
+  const { error } = await sb.rpc('admin_delete_inscription', { p_id: inscriptionId });
+  if (error) return showToast('Erreur : ' + error.message);
+  showToast('Adhérent supprimé');
   await loadInscriptions();
 }
 

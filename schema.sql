@@ -186,6 +186,17 @@ $$;
 revoke all on function admin_marquer_paye(uuid, boolean) from public;
 grant execute on function admin_marquer_paye(uuid, boolean) to anon, authenticated;
 
+create or replace function admin_delete_inscription(p_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from inscriptions where id = p_id;
+$$;
+revoke all on function admin_delete_inscription(uuid) from public;
+grant execute on function admin_delete_inscription(uuid) to anon, authenticated;
+
 -- ═══════════════════ PUBLIC : places restantes (pas de données perso exposées) ═══════════════════
 create or replace function places_prises(p_periode_id uuid)
 returns bigint
