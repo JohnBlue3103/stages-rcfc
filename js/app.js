@@ -208,8 +208,13 @@ async function validerInscription(periodeId) {
   chargerPeriodes(); // rafraîchit les places restantes
 }
 
+function referenceVirement(nom, prenom, periodeNom) {
+  return nom.toUpperCase() + ' ' + prenom + ' - ' + periodeNom;
+}
+
 function afficherConfirmation(p, nom, prenom, jours, montant) {
   const dateLimite = dateLimitePaiement(p.date_debut);
+  const reference = referenceVirement(nom, prenom, p.nom);
   document.getElementById('modal-form-content').innerHTML = `
     <div class="confirmation">
       <div class="check">✅</div>
@@ -224,7 +229,7 @@ function afficherConfirmation(p, nom, prenom, jours, montant) {
         <div><span>IBAN</span> <strong>${VIREMENT_INFO.iban}</strong></div>
         <div><span>BIC</span> <strong>${VIREMENT_INFO.bic}</strong></div>
         <div><span>Montant</span> <strong>${montant} €</strong></div>
-        <div><span>Référence</span> <strong>${nom.toUpperCase()} ${prenom}</strong></div>
+        <div><span>Référence</span> <strong>${reference}</strong></div>
         <div><span>Date limite</span> <strong style="color:#fc8181;">${dateLimite}</strong></div>
       </div>
       <button class="btn-gold" onclick="fermerModal()">Fermer</button>
@@ -244,6 +249,7 @@ async function envoyerEmailPreinscription(inscription, periode) {
       iban: VIREMENT_INFO.iban,
       bic: VIREMENT_INFO.bic,
       beneficiaire: VIREMENT_INFO.beneficiaire,
+      reference: referenceVirement(inscription.nom, inscription.prenom, periode.nom),
     });
   } catch (e) {
     // Silencieux : la pré-inscription est déjà enregistrée en base, l'email est un bonus
