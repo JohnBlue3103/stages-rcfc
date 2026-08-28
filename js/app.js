@@ -223,7 +223,8 @@ function afficherConfirmation(p, nom, prenom, jours, montant) {
       ${prenom} ${nom} est pré-inscrit(e) au stage <strong style="color:#fff;">${p.nom}</strong>
       (${jours.length} jour${jours.length > 1 ? 's' : ''} : ${jours.map(formatDateCourte).join(', ')}).
       L'inscription ne sera confirmée qu'à réception du virement, <strong style="color:#fff;">au plus tard le ${dateLimite}</strong>
-      (3 semaines avant le début du stage). Un email de confirmation vous sera envoyé dès validation du paiement par le club.</p>
+      (3 semaines avant le début du stage). Une fois votre virement effectué, vous recevrez un email de confirmation
+      dès que le trésorier aura pointé la réception du paiement.</p>
       <div class="virement-box">
         <div><span>Bénéficiaire</span> <strong>${VIREMENT_INFO.beneficiaire}</strong></div>
         <div><span>IBAN</span> <strong>${VIREMENT_INFO.iban}</strong></div>
