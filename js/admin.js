@@ -245,7 +245,7 @@ async function marquerPaye(inscriptionId, periodeNom) {
 
 async function envoyerEmailConfirmation(inscription, periodeNom) {
   try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_PAIEMENT_ID, {
       to_email: inscription.email,
       to_name: inscription.prenom + ' ' + inscription.nom,
       periode_nom: periodeNom || '',

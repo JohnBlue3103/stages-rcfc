@@ -118,9 +118,20 @@
       background: #0d1f3c; border: 1px solid #1e3a5f; border-radius: 10px;
       padding: 10px 14px; margin-top: 14px; color: #8fa8c8; font-size: 0.78rem; line-height: 1.5;
     }
+
+    .admin-link {
+      position: fixed; top: 16px; right: 16px;
+      display: flex; align-items: center; gap: 6px;
+      background: #162847; border: 1.5px solid #1e3a5f; color: #8fa8c8;
+      border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; font-weight: 600;
+      text-decoration: none; transition: all 0.15s;
+    }
+    .admin-link:hover { border-color: #C8A84B; color: #C8A84B; }
   </style>
 </head>
 <body>
+
+  <a href="admin.html" class="admin-link"><i data-lucide="lock" width="15" height="15"></i> Connexion admin</a>
 
   <div class="hero">
     <img src="assets/logo.jpg" alt="Logo RCFC"/>

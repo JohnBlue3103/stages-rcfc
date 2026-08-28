@@ -44,6 +44,13 @@ function formatDateCourte(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+// Le virement doit être fait au moins 3 semaines (21 jours) avant le début du stage
+function dateLimitePaiement(dateDebut) {
+  const d = new Date(dateDebut + 'T00:00:00');
+  d.setDate(d.getDate() - 21);
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 // Liste les jours de semaine (lundi-vendredi) entre deux dates incluses
 function joursOuvresPeriode(dateDebut, dateFin) {
   const jours = [];
@@ -197,28 +204,50 @@ async function validerInscription(periodeId) {
 
   const p = periodesCache.find(x => x.id === periodeId);
   afficherConfirmation(p, nom, prenom, jours, montant);
+  envoyerEmailPreinscription({ email, nom, prenom, jours, montant }, p);
   chargerPeriodes(); // rafraîchit les places restantes
 }
 
 function afficherConfirmation(p, nom, prenom, jours, montant) {
+  const dateLimite = dateLimitePaiement(p.date_debut);
   document.getElementById('modal-form-content').innerHTML = `
     <div class="confirmation">
       <div class="check">✅</div>
       <h3>Pré-inscription enregistrée</h3>
-      <p>${prenom} ${nom} est pré-inscrit(e) au stage <strong style="color:#fff;">${p.nom}</strong>
+      <p><strong style="color:#fc8181;">Attention : ceci est une PRÉ-inscription, elle ne vaut pas inscription définitive.</strong>
+      ${prenom} ${nom} est pré-inscrit(e) au stage <strong style="color:#fff;">${p.nom}</strong>
       (${jours.length} jour${jours.length > 1 ? 's' : ''} : ${jours.map(formatDateCourte).join(', ')}).
-      Pour valider définitivement l'inscription, merci d'effectuer un virement bancaire avec les coordonnées ci-dessous.
-      L'adhésion sera confirmée par email dès réception du paiement.</p>
+      L'inscription ne sera confirmée qu'à réception du virement, <strong style="color:#fff;">au plus tard le ${dateLimite}</strong>
+      (3 semaines avant le début du stage). Un email de confirmation vous sera envoyé dès validation du paiement par le club.</p>
       <div class="virement-box">
         <div><span>Bénéficiaire</span> <strong>${VIREMENT_INFO.beneficiaire}</strong></div>
         <div><span>IBAN</span> <strong>${VIREMENT_INFO.iban}</strong></div>
         <div><span>BIC</span> <strong>${VIREMENT_INFO.bic}</strong></div>
         <div><span>Montant</span> <strong>${montant} €</strong></div>
         <div><span>Référence</span> <strong>${nom.toUpperCase()} ${prenom}</strong></div>
+        <div><span>Date limite</span> <strong style="color:#fc8181;">${dateLimite}</strong></div>
       </div>
       <button class="btn-gold" onclick="fermerModal()">Fermer</button>
     </div>
   `;
+}
+
+async function envoyerEmailPreinscription(inscription, periode) {
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_PREINSCRIPTION_ID, {
+      to_email: inscription.email,
+      to_name: inscription.prenom + ' ' + inscription.nom,
+      periode_nom: periode.nom,
+      jours: inscription.jours.map(formatDateCourte).join(', '),
+      montant: inscription.montant,
+      date_limite: dateLimitePaiement(periode.date_debut),
+      iban: VIREMENT_INFO.iban,
+      bic: VIREMENT_INFO.bic,
+      beneficiaire: VIREMENT_INFO.beneficiaire,
+    });
+  } catch (e) {
+    // Silencieux : la pré-inscription est déjà enregistrée en base, l'email est un bonus
+  }
 }
 
 function showToast(msg) {
