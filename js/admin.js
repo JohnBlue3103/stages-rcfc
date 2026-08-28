@@ -238,19 +238,20 @@ function renderInscritRow(i, periode) {
         ${i.paye
           ? `<span class="badge-paye">✔ Payé</span>`
           : `<span class="badge-attente">En attente</span>
-             <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.nom.replace(/'/g, "\\'")}')">Cet adhérent a payé</button>`}
+             <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.id}')">Cet adhérent a payé</button>`}
         <button class="btn-sm-red" onclick="supprimerInscription('${i.id}')">🗑 Supprimer</button>
       </div>
     </div>
   `;
 }
 
-async function marquerPaye(inscriptionId, periodeNom) {
+async function marquerPaye(inscriptionId, periodeId) {
   const { data, error } = await sb.rpc('admin_marquer_paye', { p_id: inscriptionId, p_paye: true });
   if (error) { showToast('Erreur : ' + error.message); return; }
 
+  const periode = periodesCache.find(p => p.id === periodeId);
   showToast('Adhérent marqué comme payé ✅');
-  await envoyerEmailConfirmation(data, periodeNom);
+  await envoyerEmailConfirmation(data, periode);
   await loadInscriptions();
 }
 
@@ -262,12 +263,20 @@ async function supprimerInscription(inscriptionId) {
   await loadInscriptions();
 }
 
-async function envoyerEmailConfirmation(inscription, periodeNom) {
+async function envoyerEmailConfirmation(inscription, periode) {
+  const nbJours = inscription.jours_selectionnes?.length || 0;
+  const joursLabel = nbJours
+    ? inscription.jours_selectionnes.map(j => new Date(j + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })).join(', ')
+    : '';
+
   try {
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_PAIEMENT_ID, {
       to_email: inscription.email,
       to_name: inscription.prenom + ' ' + inscription.nom,
-      periode_nom: periodeNom || '',
+      periode_nom: periode?.nom || '',
+      periode_dates: periode ? ('du ' + formatDateFr(periode.date_debut) + ' au ' + formatDateFr(periode.date_fin)) : '',
+      jours: joursLabel,
+      montant: inscription.montant,
     });
   } catch (e) {
     showToast("Paiement enregistré, mais l'envoi du mail a échoué : vérifiez la config EmailJS");
