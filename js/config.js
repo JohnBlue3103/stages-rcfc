@@ -13,7 +13,7 @@ const EMAILJS_SERVICE_ID  = 'service_nb1i2wh';
 // 1) envoyé tout de suite après la pré-inscription (rappel : ce n'est pas encore définitif)
 const EMAILJS_TEMPLATE_PREINSCRIPTION_ID = 'template_vh3ebzi';
 // 2) envoyé quand l'admin clique "Cet adhérent a payé" (confirmation définitive)
-const EMAILJS_TEMPLATE_PAIEMENT_ID = 'COLLER_LE_TEMPLATE_ID_PAIEMENT_ICI';
+const EMAILJS_TEMPLATE_PAIEMENT_ID = 'template_bxxv59n';
 
 if (window.emailjs) emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
