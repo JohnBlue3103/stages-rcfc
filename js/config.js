@@ -17,9 +17,9 @@ const EMAILJS_TEMPLATE_PAIEMENT_ID = 'COLLER_LE_TEMPLATE_ID_PAIEMENT_ICI';
 
 if (window.emailjs) emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
-// Coordonnées bancaires affichées lors de la pré-inscription (à compléter)
+// Coordonnées bancaires affichées lors de la pré-inscription
 const VIREMENT_INFO = {
-  beneficiaire: 'Ramonville Coteaux Football Club',
-  iban: 'FR76 XXXX XXXX XXXX XXXX XXXX XXX',
-  bic:  'XXXXXXXX'
+  beneficiaire: 'ASSOC. UNION SPORTIVE',
+  iban: 'FR76 1310 6005 0030 0458 6095 305',
+  bic:  'AGRIFRPP831'
 };
