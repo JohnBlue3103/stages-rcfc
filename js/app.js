@@ -233,6 +233,10 @@ function afficherConfirmation(p, nom, prenom, jours, montant) {
         <div><span>Référence</span> <strong>${reference}</strong></div>
         <div><span>Date limite</span> <strong style="color:#fc8181;">${dateLimite}</strong></div>
       </div>
+      <div class="info-collation">
+        💶 Vous pouvez aussi régler en espèces ou par chèque à la permanence du club,
+        le <strong style="color:#fff;">mercredi de 17h à 19h30</strong>.
+      </div>
       <button class="btn-gold" onclick="fermerModal()">Fermer</button>
     </div>
   `;
