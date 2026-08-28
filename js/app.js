@@ -258,7 +258,7 @@ async function envoyerEmailPreinscription(inscription, periode) {
     });
   } catch (e) {
     console.error('Erreur envoi email pré-inscription :', e);
-    showToast('Pré-inscription enregistrée, mais erreur envoi email : ' + (e?.text || e?.message || JSON.stringify(e)));
+    // Silencieux pour l'utilisateur : la pré-inscription est déjà enregistrée en base, l'email est un bonus
   }
 }
 
