@@ -7,7 +7,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 // Compte gratuit sur https://www.emailjs.com
 // Service > Service ID / Account > Public Key
 const EMAILJS_PUBLIC_KEY  = 'zsXeBT7IMDn9y5Lf9';
-const EMAILJS_SERVICE_ID  = 'service_nb1i2wh';
+const EMAILJS_SERVICE_ID  = 'service_crjm0lr';
 
 // Deux templates différents (Email Templates > + Create New Template) :
 // 1) envoyé tout de suite après la pré-inscription (rappel : ce n'est pas encore définitif)
