@@ -74,8 +74,8 @@ function prixPourNbJours(nb) {
 }
 
 function renderCardPeriode(p) {
-  const complet = p.places_max != null && p.places_prises >= p.places_max;
-  const placesRestantes = p.places_max != null ? Math.max(0, p.places_max - p.places_prises) : null;
+  // Places restantes masquées côté front pour le moment (en réflexion) — la limite
+  // places_max reste appliquée côté données, seul l'affichage est retiré ici.
   const nbJoursMax = joursOuvresPeriode(p.date_debut, p.date_fin).length;
   const prixMin = prixPourNbJours(1);
   const prixMax = prixPourNbJours(nbJoursMax);
@@ -86,12 +86,9 @@ function renderCardPeriode(p) {
     <div class="periode-dates">Du ${formatDateFr(p.date_debut)} au ${formatDateFr(p.date_fin)}</div>
     <div class="periode-meta">
       <div class="periode-tarif">${prixMin} € <span>à</span> ${prixMax} € <span>selon les jours choisis</span></div>
-      ${placesRestantes != null
-        ? `<div class="periode-places ${complet ? 'complet' : ''}">${complet ? 'Complet' : placesRestantes + ' places restantes'}</div>`
-        : ''}
     </div>
-    <button class="btn-gold" ${complet ? 'disabled' : ''} onclick="ouvrirInscription('${p.id}')">
-      ${complet ? 'Complet' : "Je m'inscris"}
+    <button class="btn-gold" onclick="ouvrirInscription('${p.id}')">
+      Je m'inscris
     </button>
   </div>`;
 }
