@@ -76,8 +76,6 @@ function renderCardPeriode(p) {
   const semaines = p.semaines || [];
   const debut = semaines.length ? semaines.reduce((min, s) => s.date_debut < min ? s.date_debut : min, semaines[0].date_debut) : null;
   const fin   = semaines.length ? semaines.reduce((max, s) => s.date_fin > max ? s.date_fin : max, semaines[0].date_fin) : null;
-  const prixMin = prixPourNbJours(1);
-  const prixMax = prixPourNbJours(5);
 
   return `
   <div class="periode-card">
@@ -85,9 +83,6 @@ function renderCardPeriode(p) {
     ${debut
       ? `<div class="periode-dates">Du ${formatDateFr(debut)} au ${formatDateFr(fin)}${semaines.length > 1 ? ' — ' + semaines.length + ' semaines au choix' : ''}</div>`
       : ''}
-    <div class="periode-meta">
-      <div class="periode-tarif">${prixMin} € <span>à</span> ${prixMax} € <span>par semaine choisie</span></div>
-    </div>
     <button class="btn-gold" ${semaines.length ? '' : 'disabled'} onclick="ouvrirInscription('${p.id}')">
       ${semaines.length ? "Je m'inscris" : 'Bientôt disponible'}
     </button>
