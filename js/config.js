@@ -6,12 +6,12 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 // Compte gratuit sur https://www.emailjs.com
 // Service > Service ID / Account > Public Key
-const EMAILJS_PUBLIC_KEY  = 'COLLER_LA_PUBLIC_KEY_ICI';
-const EMAILJS_SERVICE_ID  = 'COLLER_LE_SERVICE_ID_ICI';
+const EMAILJS_PUBLIC_KEY  = 'zsXeBT7IMDn9y5Lf9';
+const EMAILJS_SERVICE_ID  = 'service_nb1i2wh';
 
 // Deux templates différents (Email Templates > + Create New Template) :
 // 1) envoyé tout de suite après la pré-inscription (rappel : ce n'est pas encore définitif)
-const EMAILJS_TEMPLATE_PREINSCRIPTION_ID = 'COLLER_LE_TEMPLATE_ID_PREINSCRIPTION_ICI';
+const EMAILJS_TEMPLATE_PREINSCRIPTION_ID = 'template_vh3ebzi';
 // 2) envoyé quand l'admin clique "Cet adhérent a payé" (confirmation définitive)
 const EMAILJS_TEMPLATE_PAIEMENT_ID = 'COLLER_LE_TEMPLATE_ID_PAIEMENT_ICI';
 
