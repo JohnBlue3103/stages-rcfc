@@ -139,6 +139,18 @@ function ouvrirInscription(periodeId) {
       (réfrigérateur et micro-ondes disponibles sur place).
     </div>
 
+    <label class="consent-row">
+      <input type="checkbox" id="f-autorisation-sortie"/>
+      J'autorise mon enfant à se déplacer en compagnie de l'éducateur en dehors du stade
+      (cinéma, médiathèque, Centre Culturel Kiwi...)
+    </label>
+
+    ${p.piscine ? `
+    <label class="consent-row">
+      <input type="checkbox" id="f-sait-nager"/>
+      Je confirme que mon enfant sait nager (une séance de natation est prévue durant ce stage)
+    </label>` : ''}
+
     <button class="btn-gold" style="margin-top:14px;" onclick="validerInscription('${p.id}')">Valider ma pré-inscription</button>
   `;
 
@@ -206,18 +218,25 @@ function fermerModal() {
 }
 
 async function validerInscription(periodeId) {
-  const prenom    = document.getElementById('f-prenom').value.trim();
-  const nom       = document.getElementById('f-nom').value.trim();
-  const naissance = document.getElementById('f-naissance').value || null;
-  const parent    = document.getElementById('f-parent').value.trim() || null;
-  const email     = document.getElementById('f-email').value.trim();
-  const telephone = document.getElementById('f-telephone').value.trim() || null;
-  const jours     = joursSelectionnes();
-  const reduit    = document.getElementById('f-tarif-reduit').checked;
+  const p = periodesCache.find(x => x.id === periodeId);
+
+  const prenom      = document.getElementById('f-prenom').value.trim();
+  const nom         = document.getElementById('f-nom').value.trim();
+  const naissance   = document.getElementById('f-naissance').value || null;
+  const parent      = document.getElementById('f-parent').value.trim() || null;
+  const email       = document.getElementById('f-email').value.trim();
+  const telephone   = document.getElementById('f-telephone').value.trim() || null;
+  const jours       = joursSelectionnes();
+  const reduit      = document.getElementById('f-tarif-reduit').checked;
+  const sortie      = document.getElementById('f-autorisation-sortie').checked;
+  const saitNagerEl = document.getElementById('f-sait-nager');
+  const saitNager   = saitNagerEl ? saitNagerEl.checked : null;
 
   if (!prenom || !nom || !email) return showToast('Merci de remplir au moins le nom, prénom et email');
   if (!document.querySelectorAll('.f-semaine:checked').length) return showToast('Merci de sélectionner au moins une semaine');
   if (!jours.length) return showToast('Merci de sélectionner au moins un jour');
+  if (!sortie) return showToast("Merci de cocher l'autorisation de sortie pour valider l'inscription");
+  if (saitNagerEl && !saitNager) return showToast('Merci de confirmer que votre enfant sait nager pour ce stage');
 
   const prixBase = calculerMontantBase();
   const montant = reduit ? Math.round(prixBase * 0.8 * 100) / 100 : prixBase;
@@ -230,12 +249,13 @@ async function validerInscription(periodeId) {
     email, telephone,
     jours_selectionnes: jours,
     tarif_reduit: reduit,
-    montant
+    montant,
+    autorisation_sortie: sortie,
+    sait_nager: saitNager
   });
 
   if (error) return showToast('Erreur : ' + error.message);
 
-  const p = periodesCache.find(x => x.id === periodeId);
   afficherConfirmation(p, nom, prenom, jours, montant);
   envoyerEmailPreinscription({ email, nom, prenom, jours, montant }, p);
   chargerPeriodes();

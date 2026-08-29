@@ -115,6 +115,7 @@ function editPeriode(id) {
   document.getElementById('p-lieu').value = p.lieu ?? '';
   document.getElementById('p-ordre').value = p.ordre ?? 0;
   document.getElementById('p-actif').checked = p.actif;
+  document.getElementById('p-piscine').checked = !!p.piscine;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -125,19 +126,21 @@ function resetFormPeriode() {
   document.getElementById('p-lieu').value = '';
   document.getElementById('p-ordre').value = 0;
   document.getElementById('p-actif').checked = true;
+  document.getElementById('p-piscine').checked = false;
 }
 
 async function savePeriode() {
-  const id    = document.getElementById('p-id').value || null;
-  const nom   = document.getElementById('p-nom').value.trim();
-  const lieu  = document.getElementById('p-lieu').value.trim() || null;
-  const ordre = Number(document.getElementById('p-ordre').value) || 0;
-  const actif = document.getElementById('p-actif').checked;
+  const id      = document.getElementById('p-id').value || null;
+  const nom     = document.getElementById('p-nom').value.trim();
+  const lieu    = document.getElementById('p-lieu').value.trim() || null;
+  const ordre   = Number(document.getElementById('p-ordre').value) || 0;
+  const actif   = document.getElementById('p-actif').checked;
+  const piscine = document.getElementById('p-piscine').checked;
 
   if (!nom) return showToast('Merci de remplir le nom de la période');
 
   const { error } = await sb.rpc('admin_upsert_periode', {
-    p_id: id, p_nom: nom, p_lieu: lieu, p_ordre: ordre, p_actif: actif
+    p_id: id, p_nom: nom, p_lieu: lieu, p_piscine: piscine, p_ordre: ordre, p_actif: actif
   });
 
   if (error) return showToast('Erreur : ' + error.message);
@@ -323,6 +326,7 @@ function renderInscritRow(i, periode) {
         <div class="inscrit-meta">${i.email}${i.telephone ? ' · ' + i.telephone : ''}${i.nom_parent ? ' · Parent : ' + i.nom_parent : ''}</div>
         <div class="inscrit-meta">${joursLabel}${i.tarif_reduit ? ' · tarif réduit -20%' : ''} · <strong style="color:#fff;">${i.montant != null ? i.montant + ' €' : '—'}</strong></div>
         <div class="inscrit-meta">Pré-inscrit le ${new Date(i.date_inscription).toLocaleDateString('fr-FR')}</div>
+        <div class="inscrit-meta">${i.autorisation_sortie ? '✅' : '❌'} Autorisation sortie${i.sait_nager != null ? ' · ' + (i.sait_nager ? '✅' : '❌') + ' Sait nager' : ''}</div>
       </div>
       <div class="inscrit-actions">
         ${i.paye
