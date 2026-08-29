@@ -113,6 +113,8 @@ function ouvrirInscription(periodeId) {
     <input type="email" id="f-email" placeholder="email@exemple.fr"/>
     <label>Téléphone</label>
     <input type="tel" id="f-telephone" placeholder="06 12 34 56 78"/>
+    <label>Problèmes de santé, allergies à signaler</label>
+    <textarea id="f-sante" placeholder="Facultatif" rows="2"></textarea>
 
     <label>Semaine(s) souhaitée(s)</label>
     <div id="semaines-checklist">
@@ -143,6 +145,16 @@ function ouvrirInscription(periodeId) {
       <input type="checkbox" id="f-autorisation-sortie"/>
       J'autorise mon enfant à se déplacer en compagnie de l'éducateur en dehors du stade
       (cinéma, médiathèque, Centre Culturel Kiwi...)
+    </label>
+
+    <label class="consent-row">
+      <input type="checkbox" id="f-autorisation-intervention"/>
+      J'autorise les éducateurs et le personnel médical à intervenir auprès de mon enfant en cas d'urgence
+    </label>
+
+    <label class="consent-row">
+      <input type="checkbox" id="f-droit-image"/>
+      J'autorise le club à utiliser l'image de mon enfant (photos/vidéos prises durant le stage) à des fins de communication
     </label>
 
     ${p.piscine ? `
@@ -226,9 +238,12 @@ async function validerInscription(periodeId) {
   const parent      = document.getElementById('f-parent').value.trim() || null;
   const email       = document.getElementById('f-email').value.trim();
   const telephone   = document.getElementById('f-telephone').value.trim() || null;
+  const sante       = document.getElementById('f-sante').value.trim() || null;
   const jours       = joursSelectionnes();
   const reduit      = document.getElementById('f-tarif-reduit').checked;
   const sortie      = document.getElementById('f-autorisation-sortie').checked;
+  const intervention = document.getElementById('f-autorisation-intervention').checked;
+  const droitImage  = document.getElementById('f-droit-image').checked;
   const saitNagerEl = document.getElementById('f-sait-nager');
   const saitNager   = saitNagerEl ? saitNagerEl.checked : null;
 
@@ -236,6 +251,7 @@ async function validerInscription(periodeId) {
   if (!document.querySelectorAll('.f-semaine:checked').length) return showToast('Merci de sélectionner au moins une semaine');
   if (!jours.length) return showToast('Merci de sélectionner au moins un jour');
   if (!sortie) return showToast("Merci de cocher l'autorisation de sortie pour valider l'inscription");
+  if (!intervention) return showToast("Merci de cocher l'autorisation d'intervention en cas d'urgence pour valider l'inscription");
   if (saitNagerEl && !saitNager) return showToast('Merci de confirmer que votre enfant sait nager pour ce stage');
 
   const prixBase = calculerMontantBase();
@@ -251,7 +267,10 @@ async function validerInscription(periodeId) {
     tarif_reduit: reduit,
     montant,
     autorisation_sortie: sortie,
-    sait_nager: saitNager
+    sait_nager: saitNager,
+    droit_image: droitImage,
+    probleme_sante: sante,
+    autorisation_intervention: intervention
   });
 
   if (error) return showToast('Erreur : ' + error.message);

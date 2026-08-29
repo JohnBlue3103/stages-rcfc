@@ -21,7 +21,7 @@ body {
 .btn-outline { background: transparent; border: 1.5px solid #8fa8c8; color: #8fa8c8; }
 .btn-sm { padding: 7px 16px; font-size: 0.85rem; }
 
-input[type="text"], input[type="email"], input[type="tel"], input[type="date"] {
+input[type="text"], input[type="email"], input[type="tel"], input[type="date"], textarea {
   width: 100%;
   padding: 12px 16px;
   border: 1.5px solid #cbd5e0;
@@ -31,8 +31,9 @@ input[type="text"], input[type="email"], input[type="tel"], input[type="date"] {
   outline: none;
   transition: border-color 0.2s;
   font-family: inherit;
+  resize: vertical;
 }
-input:focus { border-color: #1a3a5c; }
+input:focus, textarea:focus { border-color: #1a3a5c; }
 
 /* Toast */
 #toast {

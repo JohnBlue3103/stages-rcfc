@@ -62,6 +62,9 @@ create table inscriptions (
   montant            numeric(6,2),      -- montant dû, calculé et figé au moment de l'inscription
   autorisation_sortie boolean not null default false, -- sortie hors stade avec l'éducateur (cinéma, centre culturel...)
   sait_nager         boolean,           -- pertinent seulement si la période inclut une séance de natation
+  droit_image        boolean not null default false, -- autorisation d'utiliser l'image de l'enfant
+  probleme_sante     text,              -- allergies, problèmes de santé à signaler (facultatif)
+  autorisation_intervention boolean not null default false, -- intervention éducateurs/personnel médical en cas d'urgence
   paye               boolean not null default false,
   date_inscription   timestamptz default now(),
   date_paiement      timestamptz

@@ -314,6 +314,16 @@ async function loadInscriptions() {
     : '<div class="empty-state"><p>Aucun inscrit</p></div>';
 }
 
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderInscritRow(i, periode) {
   const nbJours = i.jours_selectionnes?.length || 0;
   const joursLabel = nbJours
@@ -322,11 +332,17 @@ function renderInscritRow(i, periode) {
   return `
     <div class="inscrit-row ${i.paye ? 'paye' : ''}" id="inscrit-${i.id}">
       <div>
-        <div class="inscrit-nom">${i.prenom} ${i.nom}</div>
-        <div class="inscrit-meta">${i.email}${i.telephone ? ' · ' + i.telephone : ''}${i.nom_parent ? ' · Parent : ' + i.nom_parent : ''}</div>
+        <div class="inscrit-nom">${escapeHtml(i.prenom)} ${escapeHtml(i.nom)}</div>
+        <div class="inscrit-meta">${escapeHtml(i.email)}${i.telephone ? ' · ' + escapeHtml(i.telephone) : ''}${i.nom_parent ? ' · Parent : ' + escapeHtml(i.nom_parent) : ''}</div>
         <div class="inscrit-meta">${joursLabel}${i.tarif_reduit ? ' · tarif réduit -20%' : ''} · <strong style="color:#fff;">${i.montant != null ? i.montant + ' €' : '—'}</strong></div>
         <div class="inscrit-meta">Pré-inscrit le ${new Date(i.date_inscription).toLocaleDateString('fr-FR')}</div>
-        <div class="inscrit-meta">${i.autorisation_sortie ? '✅' : '❌'} Autorisation sortie${i.sait_nager != null ? ' · ' + (i.sait_nager ? '✅' : '❌') + ' Sait nager' : ''}</div>
+        <div class="inscrit-meta">
+          ${i.autorisation_sortie ? '✅' : '❌'} Sortie
+          · ${i.autorisation_intervention ? '✅' : '❌'} Intervention urgence
+          · ${i.droit_image ? '✅' : '❌'} Droit image
+          ${i.sait_nager != null ? '· ' + (i.sait_nager ? '✅' : '❌') + ' Sait nager' : ''}
+        </div>
+        ${i.probleme_sante ? `<div class="inscrit-meta" style="color:#fc8181;font-weight:600;">⚠ Santé : ${escapeHtml(i.probleme_sante)}</div>` : ''}
       </div>
       <div class="inscrit-actions">
         ${i.paye
