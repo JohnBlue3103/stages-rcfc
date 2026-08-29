@@ -160,7 +160,7 @@ function ouvrirInscription(periodeId) {
     ${p.piscine ? `
     <label class="consent-row">
       <input type="checkbox" id="f-sait-nager"/>
-      Mon enfant sait nager <span style="color:#8fa8c8;">(une séance de natation est prévue durant ce stage — laisser décoché si ce n'est pas le cas)</span>
+      En cas de déplacement à la piscine pendant le stage, je confirme que mon enfant sait nager
     </label>` : ''}
 
     <button class="btn-gold" style="margin-top:14px;" onclick="validerInscription('${p.id}')">Valider ma pré-inscription</button>
