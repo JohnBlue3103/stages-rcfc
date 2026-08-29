@@ -10,7 +10,6 @@ create table periodes (
   id           uuid primary key default gen_random_uuid(),
   nom          text not null,
   lieu         text,                   -- ex: 'Ramonville', 'Auzeville'
-  piscine      boolean not null default false, -- séance de natation incluse (case "sait nager" à l'inscription)
   ordre        int default 0,          -- ordre d'affichage
   actif        boolean default true,   -- masque la période si false
   created_at   timestamptz default now()
@@ -116,9 +115,7 @@ $$;
 revoke all on function admin_list_periodes() from public;
 grant execute on function admin_list_periodes() to anon, authenticated;
 
-create or replace function admin_upsert_periode(
-  p_id uuid, p_nom text, p_lieu text, p_piscine boolean, p_ordre int, p_actif boolean
-)
+create or replace function admin_upsert_periode(p_id uuid, p_nom text, p_lieu text, p_ordre int, p_actif boolean)
 returns periodes
 language plpgsql
 security definer
@@ -128,19 +125,15 @@ declare
   r periodes;
 begin
   if p_id is null then
-    insert into periodes (nom, lieu, piscine, ordre, actif)
-    values (p_nom, p_lieu, p_piscine, p_ordre, p_actif)
-    returning * into r;
+    insert into periodes (nom, lieu, ordre, actif) values (p_nom, p_lieu, p_ordre, p_actif) returning * into r;
   else
-    update periodes set nom = p_nom, lieu = p_lieu, piscine = p_piscine, ordre = p_ordre, actif = p_actif
-    where id = p_id
-    returning * into r;
+    update periodes set nom = p_nom, lieu = p_lieu, ordre = p_ordre, actif = p_actif where id = p_id returning * into r;
   end if;
   return r;
 end;
 $$;
-revoke all on function admin_upsert_periode(uuid,text,text,boolean,int,boolean) from public;
-grant execute on function admin_upsert_periode(uuid,text,text,boolean,int,boolean) to anon, authenticated;
+revoke all on function admin_upsert_periode(uuid,text,text,int,boolean) from public;
+grant execute on function admin_upsert_periode(uuid,text,text,int,boolean) to anon, authenticated;
 
 create or replace function admin_delete_periode(p_id uuid)
 returns void

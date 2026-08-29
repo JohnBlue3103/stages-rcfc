@@ -115,7 +115,6 @@ function editPeriode(id) {
   document.getElementById('p-lieu').value = p.lieu ?? '';
   document.getElementById('p-ordre').value = p.ordre ?? 0;
   document.getElementById('p-actif').checked = p.actif;
-  document.getElementById('p-piscine').checked = !!p.piscine;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -126,21 +125,19 @@ function resetFormPeriode() {
   document.getElementById('p-lieu').value = '';
   document.getElementById('p-ordre').value = 0;
   document.getElementById('p-actif').checked = true;
-  document.getElementById('p-piscine').checked = false;
 }
 
 async function savePeriode() {
-  const id      = document.getElementById('p-id').value || null;
-  const nom     = document.getElementById('p-nom').value.trim();
-  const lieu    = document.getElementById('p-lieu').value.trim() || null;
-  const ordre   = Number(document.getElementById('p-ordre').value) || 0;
-  const actif   = document.getElementById('p-actif').checked;
-  const piscine = document.getElementById('p-piscine').checked;
+  const id    = document.getElementById('p-id').value || null;
+  const nom   = document.getElementById('p-nom').value.trim();
+  const lieu  = document.getElementById('p-lieu').value.trim() || null;
+  const ordre = Number(document.getElementById('p-ordre').value) || 0;
+  const actif = document.getElementById('p-actif').checked;
 
   if (!nom) return showToast('Merci de remplir le nom de la période');
 
   const { error } = await sb.rpc('admin_upsert_periode', {
-    p_id: id, p_nom: nom, p_lieu: lieu, p_piscine: piscine, p_ordre: ordre, p_actif: actif
+    p_id: id, p_nom: nom, p_lieu: lieu, p_ordre: ordre, p_actif: actif
   });
 
   if (error) return showToast('Erreur : ' + error.message);

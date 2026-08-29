@@ -157,11 +157,10 @@ function ouvrirInscription(periodeId) {
       J'autorise le club à utiliser l'image de mon enfant (photos/vidéos prises durant le stage) à des fins de communication
     </label>
 
-    ${p.piscine ? `
     <label class="consent-row">
       <input type="checkbox" id="f-sait-nager"/>
       En cas de déplacement à la piscine pendant le stage, je confirme que mon enfant sait nager
-    </label>` : ''}
+    </label>
 
     <button class="btn-gold" style="margin-top:14px;" onclick="validerInscription('${p.id}')">Valider ma pré-inscription</button>
   `;
