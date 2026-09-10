@@ -14,7 +14,10 @@ jobs:
     steps:
       - name: Ping Supabase REST API
         run: |
-          curl -sS -o /dev/null -w "HTTP %{http_code}\n" \
+          # -f fait échouer le step (et donc le job) si Supabase répond une
+          # erreur HTTP, au lieu de rapporter "succès" à tort — sans ça, une
+          # clé révoquée ou une table renommée passerait inaperçue.
+          curl -fsS -o /dev/null -w "HTTP %{http_code}\n" \
             "${{ secrets.SUPABASE_URL }}/rest/v1/periodes?select=id&limit=1" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
