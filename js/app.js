@@ -33,6 +33,13 @@ async function chargerPeriodes() {
 
   const avecSemaines = await Promise.all(periodes.map(async p => {
     const { data: semaines } = await sb.from('semaines').select('*').eq('periode_id', p.id).order('ordre');
+    const ouverte = PERIODES_OUVERTES.includes(p.nom);
+    if (ouverte && semaines?.length) {
+      await Promise.all(semaines.map(async s => {
+        const { data } = await sb.rpc('semaine_places_restantes', { p_semaine_id: s.id });
+        s.placesRestantes = data != null ? data : s.capacite;
+      }));
+    }
     return { ...p, semaines: semaines || [] };
   }));
 
@@ -83,10 +90,21 @@ function renderCardPeriode(p) {
 
   const ouverte = semaines.length && PERIODES_OUVERTES.includes(p.nom);
 
+  const placesHtml = ouverte
+    ? semaines.map(s => {
+        const restantes = s.placesRestantes;
+        const complet = restantes <= 0;
+        return `<div class="${complet ? 'semaine-complet' : 'semaine-places'}" style="display:inline-block;margin:2px 4px 0 0;">
+          ${s.nom} : ${complet ? 'Complet' : restantes + ' place' + (restantes > 1 ? 's' : '') + ' restante' + (restantes > 1 ? 's' : '')}
+        </div>`;
+      }).join('')
+    : '';
+
   return `
   <div class="periode-card">
     <h2>${p.nom}</h2>
     ${p.lieu ? `<div class="periode-lieu">📍 ${p.lieu === 'Ramonville' ? 'Stade Honneur Ramonville' : p.lieu}</div>` : ''}
+    ${placesHtml ? `<div class="periode-places">${placesHtml}</div>` : ''}
     ${debut
       ? `<div class="periode-dates">Du ${formatDateFr(debut)} au ${formatDateFr(fin)}${semaines.length > 1 ? ' — ' + semaines.length + ' semaines au choix' : ''}</div>`
       : ''}
@@ -153,7 +171,7 @@ async function ouvrirInscription(periodeId) {
     <div class="montant-box" id="montant-box"></div>
 
     <div class="info-collation">
-      🕗 Accueil de 8h30 à 9h30 — récupération des enfants de 16h30 à 17h30.<br/>
+      🕗 Accueil et récupération des enfants de 8h30 à 18h.<br/>
       🍎 Collation offerte par le club matin et après-midi. Le repas du midi est apporté par l'enfant
       (possibilité de le réchauffer au club house).
     </div>
