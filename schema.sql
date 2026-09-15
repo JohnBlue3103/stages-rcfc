@@ -27,6 +27,7 @@ create table semaines (
   date_debut  date not null,
   date_fin    date not null,
   ordre       int default 0,
+  capacite    int not null default 16, -- places disponibles pour cette semaine
   created_at  timestamptz default now()
 );
 
@@ -44,7 +45,7 @@ alter table grille_tarifs enable row level security;
 create policy "public read grille_tarifs" on grille_tarifs for select using (true);
 
 insert into grille_tarifs (nb_jours, prix) values
-  (1, 32), (2, 60), (3, 85), (4, 108), (5, 130);
+  (1, 40), (2, 65), (3, 85), (4, 100), (5, 110);
 
 -- ═══════════════════ INSCRIPTIONS ═══════════════════
 create table inscriptions (
@@ -159,7 +160,7 @@ revoke all on function admin_list_semaines(uuid) from public;
 grant execute on function admin_list_semaines(uuid) to anon, authenticated;
 
 create or replace function admin_upsert_semaine(
-  p_id uuid, p_periode_id uuid, p_nom text, p_date_debut date, p_date_fin date, p_ordre int
+  p_id uuid, p_periode_id uuid, p_nom text, p_date_debut date, p_date_fin date, p_ordre int, p_capacite int
 )
 returns semaines
 language plpgsql
@@ -170,19 +171,47 @@ declare
   r semaines;
 begin
   if p_id is null then
-    insert into semaines (periode_id, nom, date_debut, date_fin, ordre)
-    values (p_periode_id, p_nom, p_date_debut, p_date_fin, p_ordre)
+    insert into semaines (periode_id, nom, date_debut, date_fin, ordre, capacite)
+    values (p_periode_id, p_nom, p_date_debut, p_date_fin, p_ordre, coalesce(p_capacite, 16))
     returning * into r;
   else
-    update semaines set nom = p_nom, date_debut = p_date_debut, date_fin = p_date_fin, ordre = p_ordre
+    update semaines set nom = p_nom, date_debut = p_date_debut, date_fin = p_date_fin, ordre = p_ordre,
+      capacite = coalesce(p_capacite, 16)
     where id = p_id
     returning * into r;
   end if;
   return r;
 end;
 $$;
-revoke all on function admin_upsert_semaine(uuid,uuid,text,date,date,int) from public;
-grant execute on function admin_upsert_semaine(uuid,uuid,text,date,date,int) to anon, authenticated;
+revoke all on function admin_upsert_semaine(uuid,uuid,text,date,date,int,int) from public;
+grant execute on function admin_upsert_semaine(uuid,uuid,text,date,date,int,int) to anon, authenticated;
+
+-- Nombre de places restantes pour une semaine donnée : capacité moins le nombre
+-- d'inscriptions ayant choisi au moins un jour de cette semaine. Fonction publique
+-- (pas de données perso exposées, juste un compteur) pour l'affichage sur le site.
+create or replace function semaine_places_restantes(p_semaine_id uuid)
+returns int
+language sql
+security definer
+set search_path = public
+as $$
+  select greatest(
+    s.capacite - coalesce((
+      select count(*)
+      from inscriptions i
+      where i.periode_id = s.periode_id
+        and exists (
+          select 1 from unnest(i.jours_selectionnes) as d
+          where d between s.date_debut and s.date_fin
+        )
+    ), 0),
+    0
+  )
+  from semaines s
+  where s.id = p_semaine_id;
+$$;
+revoke all on function semaine_places_restantes(uuid) from public;
+grant execute on function semaine_places_restantes(uuid) to anon, authenticated;
 
 create or replace function admin_delete_semaine(p_id uuid)
 returns void

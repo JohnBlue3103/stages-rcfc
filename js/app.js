@@ -90,12 +90,18 @@ function renderCardPeriode(p) {
   </div>`;
 }
 
-function ouvrirInscription(periodeId) {
+async function ouvrirInscription(periodeId) {
   const p = periodesCache.find(x => x.id === periodeId);
   if (!p || !p.semaines?.length) return;
 
   semainesModalCache = {};
   p.semaines.forEach(s => { semainesModalCache[s.id] = s; });
+
+  const placesParSemaine = {};
+  await Promise.all(p.semaines.map(async s => {
+    const { data } = await sb.rpc('semaine_places_restantes', { p_semaine_id: s.id });
+    placesParSemaine[s.id] = data != null ? data : s.capacite;
+  }));
 
   document.getElementById('modal-form-content').innerHTML = `
     <h3>Pré-inscription</h3>
@@ -118,15 +124,19 @@ function ouvrirInscription(periodeId) {
 
     <label>Semaine(s) souhaitée(s)</label>
     <div id="semaines-checklist">
-      ${p.semaines.map(s => `
+      ${p.semaines.map(s => {
+        const restantes = placesParSemaine[s.id];
+        const complet = restantes <= 0;
+        return `
         <div class="semaine-block">
           <label class="semaine-check">
-            <input type="checkbox" class="f-semaine" value="${s.id}" onchange="toggleSemaine('${s.id}')"/>
+            <input type="checkbox" class="f-semaine" value="${s.id}" onchange="toggleSemaine('${s.id}')" ${complet ? 'disabled' : ''}/>
             <strong>${s.nom}</strong> — du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)}
+            <span class="${complet ? 'semaine-complet' : 'semaine-places'}">${complet ? 'Complet' : restantes + ' place' + (restantes > 1 ? 's' : '') + ' restante' + (restantes > 1 ? 's' : '')}</span>
           </label>
           <div class="jours-checklist" id="jours-semaine-${s.id}" style="display:none;"></div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>
 
     <label class="tarif-reduit-row">
@@ -137,8 +147,9 @@ function ouvrirInscription(periodeId) {
     <div class="montant-box" id="montant-box"></div>
 
     <div class="info-collation">
-      🍎 Collation offerte par le club matin et après-midi. Le repas du midi est à apporter
-      (réfrigérateur et micro-ondes disponibles sur place).
+      🕗 Accueil de 8h30 à 9h30 — récupération des enfants de 16h30 à 17h30.<br/>
+      🍎 Collation offerte par le club matin et après-midi. Le repas du midi est apporté par l'enfant
+      (possibilité de le réchauffer au club house).
     </div>
 
     <label class="consent-row">

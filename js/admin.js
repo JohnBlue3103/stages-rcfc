@@ -184,7 +184,7 @@ function renderSemainesList() {
     <div class="periode-row">
       <div>
         <div class="periode-row-titre">${s.nom}</div>
-        <div class="periode-row-sub">Du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)}</div>
+        <div class="periode-row-sub">Du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)} — ${s.capacite ?? 16} places</div>
       </div>
       <div class="periode-row-actions">
         <button class="btn-sm-grey" onclick="editSemaine('${s.id}')">✎ Modifier</button>
@@ -202,6 +202,7 @@ function editSemaine(id) {
   document.getElementById('s-date-debut').value = s.date_debut;
   document.getElementById('s-date-fin').value = s.date_fin;
   document.getElementById('s-ordre').value = s.ordre ?? 0;
+  document.getElementById('s-capacite').value = s.capacite ?? 16;
   window.scrollTo({ top: document.getElementById('semaines-periode-select').getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
 }
 
@@ -211,6 +212,7 @@ function resetFormSemaine() {
   document.getElementById('s-date-debut').value = '';
   document.getElementById('s-date-fin').value = '';
   document.getElementById('s-ordre').value = 0;
+  document.getElementById('s-capacite').value = 16;
 }
 
 async function saveSemaine() {
@@ -222,11 +224,12 @@ async function saveSemaine() {
   const dateDebut = document.getElementById('s-date-debut').value;
   const dateFin   = document.getElementById('s-date-fin').value;
   const ordre     = Number(document.getElementById('s-ordre').value) || 0;
+  const capacite  = Number(document.getElementById('s-capacite').value) || 16;
 
   if (!nom || !dateDebut || !dateFin) return showToast('Merci de remplir le nom et les dates');
 
   const { error } = await sb.rpc('admin_upsert_semaine', {
-    p_id: id, p_periode_id: periodeId, p_nom: nom, p_date_debut: dateDebut, p_date_fin: dateFin, p_ordre: ordre
+    p_id: id, p_periode_id: periodeId, p_nom: nom, p_date_debut: dateDebut, p_date_fin: dateFin, p_ordre: ordre, p_capacite: capacite
   });
 
   if (error) return showToast('Erreur : ' + error.message);

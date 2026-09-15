@@ -210,8 +210,16 @@
                 <input type="date" id="s-date-fin"/>
               </div>
             </div>
-            <label>Ordre d'affichage</label>
-            <input type="number" id="s-ordre" value="0"/>
+            <div class="row-2">
+              <div>
+                <label>Ordre d'affichage</label>
+                <input type="number" id="s-ordre" value="0"/>
+              </div>
+              <div>
+                <label>Places disponibles</label>
+                <input type="number" id="s-capacite" value="16" min="0"/>
+              </div>
+            </div>
             <button class="btn-gold" onclick="saveSemaine()">+ Enregistrer</button>
             <button class="btn-sm-grey" style="width:100%;margin-top:8px;" onclick="resetFormSemaine()">Annuler / Nouvelle semaine</button>
           </div>
