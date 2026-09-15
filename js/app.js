@@ -1,5 +1,9 @@
 let periodesCache = [];
 let grilleTarifs = {}; // nb_jours -> prix
+
+// Périodes ouvertes aux inscriptions pour le moment (les autres sont affichées
+// mais grisées avec "Bientôt ouvert"). À mettre à jour au fil de l'année.
+const PERIODES_OUVERTES = ['Vacances de la Toussaint'];
 let semainesModalCache = {}; // id -> semaine, pour la modale d'inscription ouverte
 
 window.addEventListener('DOMContentLoaded', async () => {
@@ -77,6 +81,8 @@ function renderCardPeriode(p) {
   const debut = semaines.length ? semaines.reduce((min, s) => s.date_debut < min ? s.date_debut : min, semaines[0].date_debut) : null;
   const fin   = semaines.length ? semaines.reduce((max, s) => s.date_fin > max ? s.date_fin : max, semaines[0].date_fin) : null;
 
+  const ouverte = semaines.length && PERIODES_OUVERTES.includes(p.nom);
+
   return `
   <div class="periode-card">
     <h2>${p.nom}</h2>
@@ -84,8 +90,8 @@ function renderCardPeriode(p) {
     ${debut
       ? `<div class="periode-dates">Du ${formatDateFr(debut)} au ${formatDateFr(fin)}${semaines.length > 1 ? ' — ' + semaines.length + ' semaines au choix' : ''}</div>`
       : ''}
-    <button class="btn-gold" ${semaines.length ? '' : 'disabled'} onclick="ouvrirInscription('${p.id}')">
-      ${semaines.length ? "Je m'inscris" : 'Bientôt disponible'}
+    <button class="btn-gold" ${ouverte ? '' : 'disabled'} onclick="ouvrirInscription('${p.id}')">
+      ${!semaines.length ? 'Bientôt disponible' : ouverte ? "Je m'inscris" : 'Bientôt ouvert'}
     </button>
   </div>`;
 }
