@@ -184,7 +184,7 @@ function renderSemainesList() {
     <div class="periode-row">
       <div>
         <div class="periode-row-titre">${s.nom}</div>
-        <div class="periode-row-sub">Du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)} — ${s.capacite ?? 16} places</div>
+        <div class="periode-row-sub">Du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)} — ${s.capacite ?? 24} places</div>
       </div>
       <div class="periode-row-actions">
         <button class="btn-sm-grey" onclick="editSemaine('${s.id}')">✎ Modifier</button>
@@ -202,7 +202,7 @@ function editSemaine(id) {
   document.getElementById('s-date-debut').value = s.date_debut;
   document.getElementById('s-date-fin').value = s.date_fin;
   document.getElementById('s-ordre').value = s.ordre ?? 0;
-  document.getElementById('s-capacite').value = s.capacite ?? 16;
+  document.getElementById('s-capacite').value = s.capacite ?? 24;
   window.scrollTo({ top: document.getElementById('semaines-periode-select').getBoundingClientRect().top + window.scrollY - 20, behavior: 'smooth' });
 }
 
@@ -212,7 +212,7 @@ function resetFormSemaine() {
   document.getElementById('s-date-debut').value = '';
   document.getElementById('s-date-fin').value = '';
   document.getElementById('s-ordre').value = 0;
-  document.getElementById('s-capacite').value = 16;
+  document.getElementById('s-capacite').value = 24;
 }
 
 async function saveSemaine() {
@@ -224,7 +224,7 @@ async function saveSemaine() {
   const dateDebut = document.getElementById('s-date-debut').value;
   const dateFin   = document.getElementById('s-date-fin').value;
   const ordre     = Number(document.getElementById('s-ordre').value) || 0;
-  const capacite  = Number(document.getElementById('s-capacite').value) || 16;
+  const capacite  = Number(document.getElementById('s-capacite').value) || 24;
 
   if (!nom || !dateDebut || !dateFin) return showToast('Merci de remplir le nom et les dates');
 

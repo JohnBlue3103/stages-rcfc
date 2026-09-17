@@ -27,7 +27,7 @@ create table semaines (
   date_debut  date not null,
   date_fin    date not null,
   ordre       int default 0,
-  capacite    int not null default 16, -- places disponibles pour cette semaine
+  capacite    int not null default 24, -- places disponibles pour cette semaine
   created_at  timestamptz default now()
 );
 
@@ -172,11 +172,11 @@ declare
 begin
   if p_id is null then
     insert into semaines (periode_id, nom, date_debut, date_fin, ordre, capacite)
-    values (p_periode_id, p_nom, p_date_debut, p_date_fin, p_ordre, coalesce(p_capacite, 16))
+    values (p_periode_id, p_nom, p_date_debut, p_date_fin, p_ordre, coalesce(p_capacite, 24))
     returning * into r;
   else
     update semaines set nom = p_nom, date_debut = p_date_debut, date_fin = p_date_fin, ordre = p_ordre,
-      capacite = coalesce(p_capacite, 16)
+      capacite = coalesce(p_capacite, 24)
     where id = p_id
     returning * into r;
   end if;
