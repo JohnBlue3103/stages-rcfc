@@ -62,6 +62,15 @@ function dateLimitePaiement(premierJour) {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+// Formate une Date en 'YYYY-MM-DD' en heure locale (toISOString() convertit en UTC
+// et décale la date d'un jour dans les fuseaux positifs comme la France — piège classique).
+function toLocalISODate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // Liste les jours de semaine (lundi-vendredi) entre deux dates incluses
 function joursOuvresPeriode(dateDebut, dateFin) {
   const jours = [];
@@ -70,7 +79,7 @@ function joursOuvresPeriode(dateDebut, dateFin) {
   while (d <= fin) {
     const jourSemaine = d.getDay(); // 0 = dimanche, 6 = samedi
     if (jourSemaine >= 1 && jourSemaine <= 5) {
-      jours.push(d.toISOString().slice(0, 10));
+      jours.push(toLocalISODate(d));
     }
     d.setDate(d.getDate() + 1);
   }
