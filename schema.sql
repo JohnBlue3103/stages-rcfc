@@ -286,6 +286,57 @@ $$;
 revoke all on function admin_delete_inscription(uuid) from public;
 grant execute on function admin_delete_inscription(uuid) to anon, authenticated;
 
+-- Modifier les jours d'une inscription (payée ou non). Le montant n'est changé que si
+-- p_montant est fourni. Jours de semaine (lundi-vendredi) d'une semaine de la période uniquement.
+create or replace function admin_update_jours_inscription(
+  p_id uuid, p_jours date[], p_montant numeric default null
+)
+returns inscriptions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  ins   inscriptions;
+  jours date[];
+  r     inscriptions;
+begin
+  select * into ins from inscriptions where id = p_id;
+  if not found then
+    raise exception 'Inscription introuvable';
+  end if;
+
+  select coalesce(array_agg(distinct d order by d), '{}')
+    into jours
+    from unnest(p_jours) as d;
+
+  if coalesce(array_length(jours, 1), 0) = 0 then
+    raise exception 'Sélectionnez au moins un jour';
+  end if;
+
+  if exists (
+    select 1 from unnest(jours) as d
+    where extract(isodow from d) > 5
+       or not exists (
+         select 1 from semaines s
+         where s.periode_id = ins.periode_id
+           and d between s.date_debut and s.date_fin
+       )
+  ) then
+    raise exception 'Jour invalide : il doit être un jour de semaine (lundi-vendredi) d''une semaine de cette période';
+  end if;
+
+  update inscriptions
+    set jours_selectionnes = jours,
+        montant = coalesce(p_montant, montant)
+    where id = p_id
+    returning * into r;
+  return r;
+end;
+$$;
+revoke all on function admin_update_jours_inscription(uuid, date[], numeric) from public;
+grant execute on function admin_update_jours_inscription(uuid, date[], numeric) to anon, authenticated;
+
 -- ═══════════════════ DONNÉES DE DÉPART (à ajuster dans l'admin) ═══════════════════
 with p1 as (insert into periodes (nom, lieu, ordre) values ('Vacances de la Toussaint', 'Ramonville', 1) returning id),
      p2 as (insert into periodes (nom, lieu, ordre) values ('Vacances de Noël', 'Auzeville', 2) returning id),

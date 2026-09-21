@@ -1,6 +1,8 @@
 let periodesCache = [];
 let grilleTarifsCache = [];
 let semainesCache = [];
+let inscriptionsCache = [];
+let editionJours = null; // { inscription, semaines, joursInitiaux } pendant la modification des jours
 
 // ── Mot de passe ──────────────────────────────────────────────────────────────
 
@@ -295,6 +297,8 @@ async function loadInscriptions() {
   const { data, error } = await sb.rpc('admin_list_inscriptions', { p_periode_id: periodeId });
   if (error) { showToast('Erreur : ' + error.message); return; }
 
+  inscriptionsCache = data || [];
+
   if (!data?.length) {
     attenteEl.innerHTML = '<div class="empty-state"><p>Aucun pré-inscrit</p></div>';
     payesEl.innerHTML   = '<div class="empty-state"><p>Aucun inscrit</p></div>';
@@ -349,6 +353,7 @@ function renderInscritRow(i, periode) {
           ? `<span class="badge-paye">✔ Payé</span>`
           : `<span class="badge-attente">En attente</span>
              <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.id}')">Cet adhérent a payé</button>`}
+        <button class="btn-sm-gold" onclick="ouvrirEditionJours('${i.id}')">✎ Modifier les jours</button>
         <button class="btn-sm-red" onclick="supprimerInscription('${i.id}')">🗑 Supprimer</button>
       </div>
     </div>
@@ -370,6 +375,168 @@ async function supprimerInscription(inscriptionId) {
   const { error } = await sb.rpc('admin_delete_inscription', { p_id: inscriptionId });
   if (error) return showToast('Erreur : ' + error.message);
   showToast('Adhérent supprimé');
+  await loadInscriptions();
+}
+
+// ── Modification des jours d'une inscription ──────────────────────────────────
+
+// 'YYYY-MM-DD' en heure locale (toISOString() convertit en UTC et décale d'un jour
+// en France — même piège que sur la page publique).
+function toLocalISODate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Jours de semaine (lundi-vendredi) entre deux dates incluses
+function joursOuvresSemaine(dateDebut, dateFin) {
+  const jours = [];
+  const d = new Date(dateDebut + 'T00:00:00');
+  const fin = new Date(dateFin + 'T00:00:00');
+  while (d <= fin) {
+    if (d.getDay() >= 1 && d.getDay() <= 5) jours.push(toLocalISODate(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return jours;
+}
+
+function formatJourCourt(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function prixPourNbJours(nb) {
+  const t = grilleTarifsCache.find(x => x.nb_jours === nb);
+  if (t) return Number(t.prix);
+  if (!grilleTarifsCache.length) return 0;
+  return Number(grilleTarifsCache[grilleTarifsCache.length - 1].prix); // au-delà de la grille : dernier palier
+}
+
+// Même règle que la page d'inscription : grille dégressive appliquée semaine par
+// semaine puis additionnée, -20% si tarif réduit.
+function calculerMontantJours(jours, semaines, reduit) {
+  let total = 0;
+  semaines.forEach(s => {
+    const nb = jours.filter(j => j >= s.date_debut && j <= s.date_fin).length;
+    if (nb > 0) total += prixPourNbJours(nb);
+  });
+  total = Math.round(total * 100) / 100;
+  return reduit ? Math.round(total * 0.8 * 100) / 100 : total;
+}
+
+function joursCoches() {
+  return Array.from(document.querySelectorAll('.ej-jour:checked')).map(el => el.value).sort();
+}
+
+async function ouvrirEditionJours(inscriptionId) {
+  const inscription = inscriptionsCache.find(i => i.id === inscriptionId);
+  if (!inscription) return;
+
+  if (!grilleTarifsCache.length) await loadGrilleTarifs();
+
+  const { data: semaines, error } = await sb.rpc('admin_list_semaines', { p_periode_id: inscription.periode_id });
+  if (error) return showToast('Erreur : ' + error.message);
+  if (!semaines?.length) return showToast("Aucune semaine définie pour cette période");
+
+  const joursInitiaux = (inscription.jours_selectionnes || []).slice().sort();
+  editionJours = { inscription, semaines, joursInitiaux };
+  const actuels = new Set(joursInitiaux);
+
+  document.getElementById('modal-jours').innerHTML = `
+    <div class="modal-jours-box">
+      <h3>Modifier les jours</h3>
+      <div class="sub">${escapeHtml(inscription.prenom)} ${escapeHtml(inscription.nom)}${inscription.paye ? ' · a déjà payé' : ' · en attente de paiement'}</div>
+      ${semaines.map(s => `
+        <div class="jours-semaine">
+          <div class="jours-semaine-titre">${escapeHtml(s.nom)} — du ${formatDateFr(s.date_debut)} au ${formatDateFr(s.date_fin)}</div>
+          <div class="jours-grid">
+            ${joursOuvresSemaine(s.date_debut, s.date_fin).map(j => `
+              <label class="jour-check">
+                <input type="checkbox" class="ej-jour" value="${j}" ${actuels.has(j) ? 'checked' : ''} onchange="majMontantEdition()"/>
+                ${formatJourCourt(j)}
+              </label>`).join('')}
+          </div>
+        </div>`).join('')}
+      <div class="montant-edition" id="edition-montant"></div>
+      <div class="modal-jours-actions">
+        <button class="btn-sm-grey" onclick="fermerEditionJours()">Annuler</button>
+        <button class="btn-sm-green" onclick="enregistrerEditionJours()">Enregistrer</button>
+      </div>
+    </div>`;
+
+  document.getElementById('modal-jours').classList.add('show');
+  majMontantEdition();
+}
+
+function fermerEditionJours() {
+  document.getElementById('modal-jours').classList.remove('show');
+  document.getElementById('modal-jours').innerHTML = '';
+  editionJours = null;
+}
+
+// Montant recalculé selon la grille actuelle, comparé à celui d'avant modification.
+// Si le découpage des jours par semaine ne change pas le prix, on conserve le montant
+// de l'inscription tel quel (cas d'une simple erreur de jour).
+function etatMontantEdition() {
+  const { inscription, semaines, joursInitiaux } = editionJours;
+  const jours = joursCoches();
+  const reduit = !!inscription.tarif_reduit;
+  const avant = calculerMontantJours(joursInitiaux, semaines, reduit);
+  const apres = calculerMontantJours(jours, semaines, reduit);
+  return { jours, avant, apres, prixChange: apres !== avant, montantActuel: inscription.montant };
+}
+
+function majMontantEdition() {
+  const el = document.getElementById('edition-montant');
+  if (!el || !editionJours) return;
+
+  const cocheAvant = document.getElementById('ej-maj-montant')?.checked || false;
+  const { jours, apres, prixChange, montantActuel } = etatMontantEdition();
+  const nbAvant = editionJours.joursInitiaux.length;
+
+  if (!jours.length) {
+    el.innerHTML = '<span style="color:#fc8181;">Sélectionnez au moins un jour</span>';
+    return;
+  }
+
+  const euro = v => (v != null ? v + ' €' : '—');
+  let html = `${jours.length} jour${jours.length > 1 ? 's' : ''} sélectionné${jours.length > 1 ? 's' : ''} (avant : ${nbAvant}).<br/>`;
+
+  if (!prixChange) {
+    html += `Le prix ne change pas : le montant reste <strong>${euro(montantActuel)}</strong>.`;
+  } else {
+    html += `Ce changement modifie le prix selon la grille.<br/>
+      <label class="jour-check" style="margin-top:6px;">
+        <input type="checkbox" id="ej-maj-montant" ${cocheAvant ? 'checked' : ''}/>
+        Recalculer le montant : <s>${euro(montantActuel)}</s> → <strong>${apres} €</strong>
+      </label>
+      <span style="font-size:0.78rem;">Sinon, le montant actuel (${euro(montantActuel)}) est conservé.</span>`;
+  }
+  el.innerHTML = html;
+}
+
+async function enregistrerEditionJours() {
+  if (!editionJours) return;
+  const { inscription, joursInitiaux } = editionJours;
+  const { jours, apres, prixChange } = etatMontantEdition();
+
+  if (!jours.length) return showToast('Sélectionnez au moins un jour');
+  if (jours.join() === joursInitiaux.join()) {
+    fermerEditionJours();
+    return showToast('Aucun changement');
+  }
+
+  const majMontant = prixChange && document.getElementById('ej-maj-montant')?.checked;
+
+  const { error } = await sb.rpc('admin_update_jours_inscription', {
+    p_id: inscription.id,
+    p_jours: jours,
+    p_montant: majMontant ? apres : null,
+  });
+  if (error) return showToast('Erreur : ' + error.message);
+
+  fermerEditionJours();
+  showToast('Jours modifiés ✅');
   await loadInscriptions();
 }
 
