@@ -405,7 +405,8 @@ function renderInscritRow(i, periode) {
         ${i.paye
           ? `<span class="badge-paye">✔ Payé</span>`
           : `<span class="badge-attente">En attente</span>
-             <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.id}')">Cet adhérent a payé</button>`}
+             <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.id}')">Cet adhérent a payé</button>
+             <button class="btn-sm-orange" onclick="relancerPaiement('${i.id}')">✉ Relancer</button>`}
         <button class="btn-sm-gold" onclick="ouvrirEditionJours('${i.id}')">✎ Modifier les jours</button>
         <button class="btn-sm-red" onclick="supprimerInscription('${i.id}')">🗑 Supprimer</button>
       </div>
@@ -609,6 +610,57 @@ async function envoyerEmailConfirmation(inscription, periode) {
     });
   } catch (e) {
     showToast("Paiement enregistré, mais l'envoi du mail a échoué : vérifiez la config EmailJS");
+  }
+}
+
+// ── Relance d'un adhérent qui n'a pas encore payé ─────────────────────────────
+
+function texteRelance(inscription, periode) {
+  const jours = (inscription.jours_selectionnes || []).slice().sort();
+  const premierJour = jours.length ? formatDateFr(jours[0]) : null;
+  const enfant = `${inscription.prenom} ${inscription.nom}`;
+  const sujet = `Rappel : paiement du stage ${periode?.nom || ''} — ${enfant}`.replace(/\s+/g, ' ').trim();
+  const message = [
+    `Bonjour${inscription.nom_parent ? ' ' + inscription.nom_parent : ''},`,
+    '',
+    `Nous n'avons pas encore reçu le paiement de l'inscription ${/^[aeiouyhâàéèêëîïôöûüœ]/i.test(enfant) ? "d'" : 'de '}${enfant} au stage ${periode?.nom || ''}`
+      + `${inscription.montant != null ? ` (${inscription.montant} €)` : ''}.`,
+    '',
+    `Nous tenons à vous rappeler que, pour que votre enfant puisse accéder au stage, le paiement doit être effectué au plus tard le premier jour du stage${premierJour ? `, soit le ${premierJour}` : ''}, en le remettant au responsable.`,
+    '',
+    'Si vous avez déjà payé, merci de ne pas tenir compte de cet e-mail.',
+    '',
+    'Sportivement,',
+    "L'équipe du RCFC",
+  ].join('\n');
+  return { sujet, message };
+}
+
+async function relancerPaiement(inscriptionId) {
+  const inscription = inscriptionsCache.find(i => i.id === inscriptionId);
+  if (!inscription) return;
+  const periode = periodesCache.find(p => p.id === inscription.periode_id)
+    || periodesCache.find(p => p.id === document.getElementById('inscriptions-periode-select').value);
+  const { sujet, message } = texteRelance(inscription, periode);
+
+  // sans template EmailJS : la messagerie de l'admin s'ouvre avec l'e-mail rédigé
+  if (!EMAILJS_TEMPLATE_RELANCE_ID) {
+    location.href = `mailto:${encodeURIComponent(inscription.email)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(message)}`;
+    showToast('E-mail de relance prêt dans votre messagerie ✉');
+    return;
+  }
+
+  if (!confirm(`Envoyer un e-mail de relance à ${inscription.email} ?\n\n${message}`)) return;
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_RELANCE_ID, {
+      to_email: inscription.email,
+      to_name: inscription.nom_parent || (inscription.prenom + ' ' + inscription.nom),
+      sujet,
+      message,
+    });
+    showToast('Relance envoyée à ' + inscription.email + ' ✅');
+  } catch (e) {
+    showToast("L'envoi de la relance a échoué : vérifiez le template EmailJS");
   }
 }
 

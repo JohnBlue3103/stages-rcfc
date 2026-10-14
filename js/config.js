@@ -14,6 +14,11 @@ const EMAILJS_SERVICE_ID  = 'service_lbb6k1k';
 const EMAILJS_TEMPLATE_PREINSCRIPTION_ID = 'template_vh3ebzi';
 // 2) envoyé quand l'admin clique "Cet adhérent a payé" (confirmation définitive)
 const EMAILJS_TEMPLATE_PAIEMENT_ID = 'template_bxxv59n';
+// 3) relance d'un adhérent qui n'a pas encore payé (bouton "Relancer" de l'admin).
+//    Template à créer dans EmailJS avec : À = {{to_email}}, Objet = {{sujet}},
+//    Contenu = {{message}}. Tant que l'ID est vide, le bouton ouvre la
+//    messagerie de l'admin avec l'e-mail déjà rédigé.
+const EMAILJS_TEMPLATE_RELANCE_ID = '';
 
 if (window.emailjs) emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
