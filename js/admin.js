@@ -629,7 +629,8 @@ function texteRelance(inscription, periode) {
     '',
     'Si vous nous avez déjà fait parvenir votre paiement merci de ne pas tenir compte de cette relance.',
     '',
-    'Sportivement',
+    'Sportivement,',
+    "L'équipe du RCFC",
   ].join('\n');
   return { sujet, message };
 }
