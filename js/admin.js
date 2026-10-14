@@ -287,6 +287,8 @@ async function loadInscriptions() {
   const periodeId  = document.getElementById('inscriptions-periode-select').value;
   const attenteEl = document.getElementById('inscriptions-attente');
   const payesEl   = document.getElementById('inscriptions-payes');
+  const statsEl   = document.getElementById('inscriptions-stats');
+  statsEl.innerHTML = '';
 
   if (!periodeId) {
     attenteEl.innerHTML = '<div class="empty-state"><p>Sélectionnez une période</p></div>';
@@ -294,10 +296,14 @@ async function loadInscriptions() {
     return;
   }
 
-  const { data, error } = await sb.rpc('admin_list_inscriptions', { p_periode_id: periodeId });
+  const [{ data, error }, { data: semaines }] = await Promise.all([
+    sb.rpc('admin_list_inscriptions', { p_periode_id: periodeId }),
+    sb.rpc('admin_list_semaines', { p_periode_id: periodeId }),
+  ]);
   if (error) { showToast('Erreur : ' + error.message); return; }
 
   inscriptionsCache = data || [];
+  statsEl.innerHTML = renderStatsPeriode(inscriptionsCache, semaines || []);
 
   if (!data?.length) {
     attenteEl.innerHTML = '<div class="empty-state"><p>Aucun pré-inscrit</p></div>';
@@ -316,6 +322,53 @@ async function loadInscriptions() {
   payesEl.innerHTML = payes.length
     ? payes.map(i => renderInscritRow(i, periode)).join('')
     : '<div class="empty-state"><p>Aucun inscrit</p></div>';
+}
+
+// Récapitulatif d'une période : présents par semaine (un enfant compte s'il
+// a au moins un jour dans la semaine), dont payés / non payés, détail par
+// jour ; puis paiements encaissés et à encaisser (nombre et montant).
+function renderStatsPeriode(inscriptions, semaines) {
+  if (!inscriptions.length) return '';
+  const euros = (n) => n.toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' €';
+  const jourCourt = (j) => new Date(j + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+
+  const cartesSemaines = [...semaines]
+    .sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0) || String(a.date_debut).localeCompare(String(b.date_debut)))
+    .map((s) => {
+      const debut = String(s.date_debut).slice(0, 10);
+      const fin = String(s.date_fin).slice(0, 10);
+      const dansSemaine = (j) => j >= debut && j <= fin;
+      const presents = inscriptions.filter((i) => (i.jours_selectionnes || []).some(dansSemaine));
+      const payes = presents.filter((i) => i.paye).length;
+      // présents par jour de la semaine
+      const parJour = {};
+      presents.forEach((i) => (i.jours_selectionnes || []).filter(dansSemaine).forEach((j) => { parJour[j] = (parJour[j] || 0) + 1; }));
+      const jours = Object.keys(parJour).sort();
+      return `
+        <div class="stat-card">
+          <div class="stat-titre">${escapeHtml(s.nom)}</div>
+          <div class="stat-dates">du ${new Date(debut + 'T00:00:00').toLocaleDateString('fr-FR')} au ${new Date(fin + 'T00:00:00').toLocaleDateString('fr-FR')}</div>
+          <div class="stat-chiffre">${presents.length} <small>présent${presents.length > 1 ? 's' : ''}${s.capacite ? ' / ' + s.capacite + ' places' : ''}</small></div>
+          <div class="stat-ligne"><span class="ok">${payes} payé${payes > 1 ? 's' : ''}</span> · <span class="att">${presents.length - payes} non payé${presents.length - payes > 1 ? 's' : ''}</span></div>
+          ${jours.length ? `<div class="stat-jours">${jours.map((j) => `<span class="stat-jour">${jourCourt(j)} : ${parJour[j]}</span>`).join('')}</div>` : ''}
+        </div>`;
+    }).join('');
+
+  const payes = inscriptions.filter((i) => i.paye);
+  const attente = inscriptions.filter((i) => !i.paye);
+  const somme = (l) => l.reduce((t, i) => t + (Number(i.montant) || 0), 0);
+
+  return `
+    <div class="stats-grid">
+      ${cartesSemaines}
+      <div class="stat-card total">
+        <div class="stat-titre">Paiements</div>
+        <div class="stat-dates">${inscriptions.length} inscription${inscriptions.length > 1 ? 's' : ''} sur la période</div>
+        <div class="stat-ligne"><span class="ok">Encaissés : ${payes.length}</span> · ${euros(somme(payes))}</div>
+        <div class="stat-ligne"><span class="att">À encaisser : ${attente.length}</span> · ${euros(somme(attente))}</div>
+        <div class="stat-ligne">Total attendu : <strong style="color:#fff;">${euros(somme(inscriptions))}</strong></div>
+      </div>
+    </div>`;
 }
 
 function escapeHtml(str) {
