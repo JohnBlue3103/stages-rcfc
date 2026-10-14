@@ -641,10 +641,11 @@ async function relancerPaiement(inscriptionId) {
     || periodesCache.find(p => p.id === document.getElementById('inscriptions-periode-select').value);
   const { sujet, message } = texteRelance(inscription, periode);
 
-  // sans template EmailJS : la messagerie de l'admin s'ouvre avec l'e-mail rédigé
+  // sans template EmailJS : une fenêtre de rédaction Gmail s'ouvre avec l'e-mail rédigé
   if (!EMAILJS_TEMPLATE_RELANCE_ID) {
-    location.href = `mailto:${encodeURIComponent(inscription.email)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(message)}`;
-    showToast('E-mail de relance prêt dans votre messagerie ✉');
+    const params = new URLSearchParams({ view: 'cm', fs: '1', to: inscription.email, su: sujet, body: message });
+    window.open('https://mail.google.com/mail/?' + params.toString(), '_blank');
+    showToast('E-mail de relance prêt dans Gmail ✉');
     return;
   }
 
