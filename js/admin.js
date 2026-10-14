@@ -627,7 +627,7 @@ function texteRelance(inscription, periode) {
     'Cette somme doit nous parvenir impérativement avant le début du stage.',
     "Sans ce règlement nous ne serons pas en mesure d'accueillir votre enfant.",
     '',
-    'Si vous nous avez déjà fait parvenir votre paiement merci de ne pas tenir compte de cette relance.',
+    'Si vous nous avez déjà fait parvenir votre paiement merci de ne pas tenir compte de cette relance automatique.',
     '',
     'Sportivement,',
     "L'équipe du RCFC",
