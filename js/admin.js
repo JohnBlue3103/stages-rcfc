@@ -643,7 +643,7 @@ async function relancerPaiement(inscriptionId) {
 
   // sans template EmailJS : une fenêtre de rédaction Gmail s'ouvre avec l'e-mail rédigé
   if (!EMAILJS_TEMPLATE_RELANCE_ID) {
-    const params = new URLSearchParams({ view: 'cm', fs: '1', to: inscription.email, su: sujet, body: message });
+    const params = new URLSearchParams({ authuser: EMAIL_CLUB, view: 'cm', fs: '1', to: inscription.email, su: sujet, body: message });
     window.open('https://mail.google.com/mail/?' + params.toString(), '_blank');
     showToast('E-mail de relance prêt dans Gmail ✉');
     return;

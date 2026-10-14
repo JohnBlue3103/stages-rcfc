@@ -19,6 +19,8 @@ const EMAILJS_TEMPLATE_PAIEMENT_ID = 'template_bxxv59n';
 //    Contenu = {{message}}. Tant que l'ID est vide, le bouton ouvre une fenêtre
 //    de rédaction Gmail avec l'e-mail déjà rédigé.
 const EMAILJS_TEMPLATE_RELANCE_ID = '';
+// boîte Gmail du club : la fenêtre de relance s'ouvre sur ce compte (s'il est connecté dans le navigateur)
+const EMAIL_CLUB = 'contact.rcfc@gmail.com';
 
 if (window.emailjs) emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
 
