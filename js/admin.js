@@ -400,13 +400,15 @@ function renderInscritRow(i, periode) {
           ${i.sait_nager != null ? '· ' + (i.sait_nager ? '✅' : '❌') + ' Sait nager' : ''}
         </div>
         ${i.probleme_sante ? `<div class="inscrit-meta" style="color:#fc8181;font-weight:600;">⚠ Santé : ${escapeHtml(i.probleme_sante)}</div>` : ''}
+        ${!i.paye && i.relances?.length ? `<div class="relances">${i.relances.map((d, n) =>
+          `<div>✉ ${n === 0 ? '1<sup>re</sup>' : (n + 1) + '<sup>e</sup>'} relance envoyée le ${new Date(d).toLocaleDateString('fr-FR')}</div>`).join('')}</div>` : ''}
       </div>
       <div class="inscrit-actions">
         ${i.paye
           ? `<span class="badge-paye">✔ Payé</span>`
           : `<span class="badge-attente">En attente</span>
              <button class="btn-sm-green" onclick="marquerPaye('${i.id}', '${periode?.id}')">Cet adhérent a payé</button>
-             <button class="btn-sm-orange" onclick="relancerPaiement('${i.id}')">✉ Relancer</button>`}
+             <button class="btn-sm-orange" onclick="relancerPaiement('${i.id}')">${i.relances?.length ? '✉ Refaire une relance' : '✉ Relancer'}</button>`}
         <button class="btn-sm-gold" onclick="ouvrirEditionJours('${i.id}')">✎ Modifier les jours</button>
         <button class="btn-sm-red" onclick="supprimerInscription('${i.id}')">🗑 Supprimer</button>
       </div>
@@ -646,6 +648,7 @@ async function relancerPaiement(inscriptionId) {
     const params = new URLSearchParams({ authuser: EMAIL_CLUB, view: 'cm', fs: '1', to: inscription.email, su: sujet, body: message });
     window.open('https://mail.google.com/mail/?' + params.toString(), '_blank');
     showToast('E-mail de relance prêt dans Gmail ✉');
+    await enregistrerRelance(inscription.id);
     return;
   }
 
@@ -658,9 +661,17 @@ async function relancerPaiement(inscriptionId) {
       message,
     });
     showToast('Relance envoyée à ' + inscription.email + ' ✅');
+    await enregistrerRelance(inscription.id);
   } catch (e) {
     showToast("L'envoi de la relance a échoué : vérifiez le template EmailJS");
   }
+}
+
+// date de la relance enregistrée sur la fiche ("1re relance envoyée le ...")
+async function enregistrerRelance(inscriptionId) {
+  const { error } = await sb.rpc('admin_ajouter_relance', { p_id: inscriptionId });
+  if (error) { showToast("Relance prête, mais sa date n'a pas pu être enregistrée : " + error.message); return; }
+  await loadInscriptions();
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────

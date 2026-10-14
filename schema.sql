@@ -67,7 +67,8 @@ create table inscriptions (
   autorisation_intervention boolean not null default false, -- intervention éducateurs/personnel médical en cas d'urgence
   paye               boolean not null default false,
   date_inscription   timestamptz default now(),
-  date_paiement      timestamptz
+  date_paiement      timestamptz,
+  relances           timestamptz[] not null default '{}'  -- dates des relances de paiement envoyées par l'admin
 );
 
 alter table inscriptions enable row level security;
@@ -274,6 +275,29 @@ end;
 $$;
 revoke all on function admin_marquer_paye(uuid, boolean) from public;
 grant execute on function admin_marquer_paye(uuid, boolean) to anon, authenticated;
+
+-- Enregistre la date d'une relance de paiement (bouton "Relancer" de l'admin)
+create or replace function admin_ajouter_relance(p_id uuid)
+returns inscriptions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  r inscriptions;
+begin
+  update inscriptions
+    set relances = relances || now()
+    where id = p_id
+    returning * into r;
+  if not found then
+    raise exception 'Inscription introuvable';
+  end if;
+  return r;
+end;
+$$;
+revoke all on function admin_ajouter_relance(uuid) from public;
+grant execute on function admin_ajouter_relance(uuid) to anon, authenticated;
 
 create or replace function admin_delete_inscription(p_id uuid)
 returns void
