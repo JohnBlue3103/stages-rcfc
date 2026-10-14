@@ -621,17 +621,15 @@ function texteRelance(inscription, periode) {
   const enfant = `${inscription.prenom} ${inscription.nom}`;
   const sujet = `Rappel : paiement du stage ${periode?.nom || ''} — ${enfant}`.replace(/\s+/g, ' ').trim();
   const message = [
-    `Bonjour${inscription.nom_parent ? ' ' + inscription.nom_parent : ''},`,
+    'Bonjour,',
     '',
-    `Nous n'avons pas encore reçu le paiement de l'inscription ${/^[aeiouyhâàéèêëîïôöûüœ]/i.test(enfant) ? "d'" : 'de '}${enfant} au stage ${periode?.nom || ''}`
-      + `${inscription.montant != null ? ` (${inscription.montant} €)` : ''}.`,
+    `Afin de finaliser l'inscription de votre enfant au stage ${periode?.nom || ''}, nous vous rappelons que vous devez régler la somme de : ${inscription.montant != null ? inscription.montant + ' €' : ''}`,
+    'Cette somme doit nous parvenir impérativement avant le début du stage.',
+    "Sans ce règlement nous ne serons pas en mesure d'accueillir votre enfant.",
     '',
-    `Nous tenons à vous rappeler que, pour que votre enfant puisse accéder au stage, le paiement doit être effectué au plus tard le premier jour de son stage, en le remettant au responsable.`,
+    'Si vous nous avez déjà fait parvenir votre paiement merci de ne pas tenir compte de cette relance.',
     '',
-    'Si vous avez déjà payé, merci de ne pas tenir compte de cet e-mail.',
-    '',
-    'Sportivement,',
-    "L'équipe du RCFC",
+    'Sportivement',
   ].join('\n');
   return { sujet, message };
 }
