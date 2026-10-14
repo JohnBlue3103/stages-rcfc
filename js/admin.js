@@ -616,8 +616,6 @@ async function envoyerEmailConfirmation(inscription, periode) {
 // ── Relance d'un adhérent qui n'a pas encore payé ─────────────────────────────
 
 function texteRelance(inscription, periode) {
-  const jours = (inscription.jours_selectionnes || []).slice().sort();
-  const premierJour = jours.length ? formatDateFr(jours[0]) : null;
   const enfant = `${inscription.prenom} ${inscription.nom}`;
   const sujet = `Rappel : paiement du stage ${periode?.nom || ''} — ${enfant}`.replace(/\s+/g, ' ').trim();
   const message = [
@@ -626,7 +624,7 @@ function texteRelance(inscription, periode) {
     `Nous n'avons pas encore reçu le paiement de l'inscription ${/^[aeiouyhâàéèêëîïôöûüœ]/i.test(enfant) ? "d'" : 'de '}${enfant} au stage ${periode?.nom || ''}`
       + `${inscription.montant != null ? ` (${inscription.montant} €)` : ''}.`,
     '',
-    `Nous tenons à vous rappeler que, pour que votre enfant puisse accéder au stage, le paiement doit être effectué au plus tard le premier jour du stage${premierJour ? `, soit le ${premierJour}` : ''}, en le remettant au responsable.`,
+    `Nous tenons à vous rappeler que, pour que votre enfant puisse accéder au stage, le paiement doit être effectué au plus tard le premier jour de son stage, en le remettant au responsable.`,
     '',
     'Si vous avez déjà payé, merci de ne pas tenir compte de cet e-mail.',
     '',
